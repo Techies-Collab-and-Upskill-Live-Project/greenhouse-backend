@@ -99,7 +99,7 @@ Ensure you have the following installed:
 6. If there are any issues, create a new branch and fix them
 7. Repeat the process until your feature is complete
 
-** Please make sure your branch is always up  to date with the latest changes before you push your content to avoid conflict. **
+*** Please make sure your branch is always up  to date with the latest changes before you push your content to avoid conflict. ***
 
 ## Coding Standards
 
