@@ -122,8 +122,8 @@ Ensure you have the following installed:
 
 ## Team Communication
 
-- We use Slack for daily communication
-- Team meetings are held every Monday and Thursday
+- We use WhatsApp for daily communication
+- Team meetings are held every Monday and Friday
 - Use GitHub Issues for task tracking and discussions
 - Update the project board on GitHub with your progress
 
