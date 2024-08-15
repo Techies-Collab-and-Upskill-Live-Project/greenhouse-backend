@@ -85,7 +85,7 @@ Ensure you have the following installed:
 
 1. Create a new branch for each feature or bug fix:
    ```
-   git checkout -b feature/your-feature-name
+   git checkout -b your-feature-name
    ```
 
 2. Make your changes, commit them with clear messages:
