@@ -1,0 +1,850 @@
+OpenAPI 3.0.0
+info:
+  title: Fysi API
+  description: The API design for FYSI app
+  version: 1.0.0
+
+paths:
+  - Users/register 
+    - post:
+        summary: Creates a new User
+        tags:
+          - Users
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationRequest/post'
+    - responses:
+      - '201':
+          description: User created successfully
+          content:
+            application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationResponses/post/201'
+      - '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponses/post/400'
+      - '409':
+          description: Conflict - Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponses/post/409'
+      - '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponses/post/500'
+
+  - Users/login
+    - post:
+        summary: Login a user
+        tags:
+          - Users
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+              $ref: '#/contents/schemas/UserLoginRequest/post'
+    - responses:
+      - '200':
+          description: Login successful
+          content:
+            applicaton/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponses/post/200'
+      - '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponses/post/400'
+      - '401':
+          description: Unauthorized - Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/conponents/schemas/UserLoginResponses/post/401'
+      - '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponses/post/500'
+
+  - Users/activate 
+    - post
+      summary: Activates a new user account
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserActivateRequest/post'
+      responses:
+        - '200':
+            description: User account activated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserActivateResponses/post/200'
+        - '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserActivateResponses/post/400'
+        - '401':
+            description: Unauthorized - Invalid credentials
+            content:
+              application/json:
+                schema:
+                  $ref: '#/conponents/schemas/UserActivateResponses/post/401'
+        - '500':
+            description: Internal server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserActivateResponses/post/500'
+
+  - Users/reset-password-request
+    - post
+        summary: Request a password reset token
+        tags:
+          - Users
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                    format: email
+                    example: johndoe@email.com 
+        responses:
+          - '200':
+              description: token sent to the registered provided email
+              component:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserResetPasswordRequestResponses/post/200'
+          - '400':
+              description: Bad request(unregistered email)
+              component:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserResetPasswordRequestResponses/post/400'
+          - '500':
+              description: Internal server error
+              component:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserResetPasswordRequestResponses/post/500'
+
+  - Users/reset-pasword
+    - post
+      summary: Resets a user password using a reset token
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserResetPasswordRequest/post'
+      responses:
+        - '201':
+            description: A new password created successfully for the User account
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserResetPasswordResponses/post/201'
+        - '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserResetPasswordResponses/post/400'
+        - '401':
+            description: Unauthorized - Invalid Credentials
+            content:
+              application/json:
+                schema:
+                  $ref: '#/conponents/schemas/UserResetPasswordResponses/post/401'
+        - '500':
+            description: Internal server error
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserResetPasswordResponses/post/500'
+
+  - Users/change-password
+    - put
+        summary: Updates a user password
+        tags:
+          - Users
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserChangePasswordRequest/put'
+        responses:
+         - '200':
+              description: Successfully changed a user password
+              component:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserChangePasswordResponses/'
+          - '400':
+              description: Bad request
+              component:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserChangePasswordResponses/'
+          - '500':
+              description: Internal server error
+              component:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserChangePasswordResponses/'
+
+  - Users/customer-profile/:userid 
+    - get
+      summary: returns a customer profile by user-id
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCustomerProfileRequest/get'
+      responses:
+        - '200':
+            - description: customer profile returned successfully
+            - content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserCustomerProfileResponse/'
+        - '400':
+            - description: Bad request
+            - content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserCustomerProfileResponse/'
+        - '500':
+            - description: Internal server error
+            - content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserCustomerProfileResponse/'
+    - put
+      summary: updates customer's profile by user-id
+      tags:
+        - Users
+      requestBody:
+        requird: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCustomerProfileRequest/put'
+      responses:
+        - '200':
+            description: customer profile updated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserCustomerProfileResponses/200'
+        - '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserCustomerProfileResponses/400'
+        - '401':
+            description: Unauthorized - Invalid credential
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserCustomerProfileResponses/401'
+        - '500':
+            description: Internal server error
+            component:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserCustomerProfileResponses/500'
+  
+  - Users/vendor-profile/:userid
+    - put
+      summary: updates vendor's profile by user-id
+      tags:
+        - Users
+      requestBody:
+        requird: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserVendorProfileRequest/put'
+      responses:
+        - '200':
+            description: vendor profile updated successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserVendorProfileResponses/'
+        - '400':
+            description: Bad request
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserVendorProfileResponses/'
+        - '401':
+            description: Unauthorized - Invalid credentials
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserVendorProfileResponses/'
+        - '500':
+            description: Internal server error
+            component:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserVendorProfileResponses/'
+    - get
+      summary: returns a vendor profile by user-id
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserVendorProfileRequest/get'
+      responses:
+        - '200':
+            - description: vendor profile returned successfully
+            - content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/UserVendorProfileResponses/'
+        - '400':
+            - description: Bad request
+            - content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserVendorProfileResponses/'
+        - '500':
+            - description: Internal server error
+            - content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UserVenorProfileResponses/'
+
+components:
+  - securitySchemas:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+
+  - schemas:
+    # Request Schema
+    - UserRegistrationRequest:
+      - post
+          type: object
+          properties: 
+            email: 
+              type: string
+              format: email
+              example: johndoe@example.com
+            password: 
+              type: string
+              format: password
+              example: "********"
+            firstName:
+              type: string
+              example: John
+            lastName:
+              type: string
+              example: Doe
+
+    - UserLoginRequest
+      - post
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+              example: "johndoe@example.com"
+            password:
+              type: string
+              format: password
+              example: "********"
+
+    - UserActivateRequest
+      - post
+        type: object
+        properties:
+          email:
+            type: string
+            format: email
+            example: "johndoe@example.com"
+          activationPin:
+            type: string
+            example: "fysi-783726"
+
+    - UserResetPasswordRequest
+      - post
+          type: object
+          properties:
+            token:
+              type: string
+              example: "Reset password token"
+  
+    - UserChangePasswordRequest
+      - put
+          type: object
+          properties:
+            currentPassword:
+              type: string
+              format: password
+              example: "********"
+            newPassword:
+              type: string
+              format: password
+              example: "********"
+            confirmNewPassword:
+              type: string
+              format: password
+              example: "********"
+
+    - UserCustomerProfileRequest
+      - get
+          type: string
+          example: "Users/customer-profile/2314"
+
+      - put
+          type: object
+          properties:
+            firstName:
+              type: string
+              example: "John"
+            lastName:
+              type: string
+              example: "Doe"
+            password:
+              type: string
+              format: password
+              example: "********"
+            phoneNumber: "+234 8036 *** 234 "
+
+    - UserVendorProfileRequest
+      - get
+      - put
+
+    # Response Schema
+    - UserRegistrationResponses
+      - post
+        -  '201':
+            type: object
+            properties:
+              message: 
+                type: string
+                example: "User created successfully"
+              data:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: 'fysi-12345'
+                  name:
+                    type: string
+                    example: "John Doe"
+                  email:
+                    type: string
+                    example: "johndoe@example.com"
+        - '400':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Bad request - User creation failed"
+              error:
+                type: object
+                properties:
+                  code: 
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Invalid data provided"
+        - '409':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Conflict - email exists"
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "409"
+                  message:
+                    type: string
+                    example: "Email already exists"
+        - '500':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Server Error"
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "500"
+                  message:
+                    type: string
+                    example: "Internal server Error"
+
+    - UserLoginResponses
+      - post
+        - '200':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "OK - Login Successful"
+              data:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "Bearer: TWEIRYFOFHHFYRRETTQYETY"
+        - '400':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Bad request - "
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Bad request"
+        - '401':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Unauthorized"
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "401"
+                  message:
+                    type: string
+                    example: "Unauthorized - Invalid credentials"
+        - '500':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Server error"
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "500"
+                  message:
+                    type: string
+                    example: "Internal Server Error"
+
+    - UserActivateResponses
+      - post
+        - '200':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "OK - Account activated"
+              token:
+                type: string
+                example: "Bearer: TWEIRYFOFHHFYRRETTQYETY"
+        - '400':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Bad request"
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Bad request"
+        - '401':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Unauthorized"
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "401"
+                  message:
+                    type: string
+                    example: "Unauthorized - Invalid Credendials"
+        - '500':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Server error"
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Internal Server Error"
+
+    - UserResetPasswordRequestResponses
+      - post
+        - '200':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "token sent to your email address"
+              email:
+                type: string
+                format: email
+                example: "johndoe@example.com"
+        - '400':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Bad request - Unregistered email "
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Invalid Email provided"
+        - '500':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Server error"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "500"
+                  message:
+                    type: string
+                    example: "Internal Server Error"
+  
+    - UserResetPasswordResponses
+      - post
+        - '201':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "passsword reset is successful"
+        - '400':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Bad request"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Bad request"
+        - '401':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Unauthorized"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "401"
+                  message:
+                    type: string
+                    example: "Unauthorized - Invalid Credentials"
+        - '500':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Server error"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "500"
+                  message:
+                    type: string
+                    example: "Internal Server Error"
+
+    - UserChangePasswordResponses
+      - put
+        - '200':
+            type: object
+            properties:
+              message:
+              type: string
+              example: "password updated successfully"
+        -  '400':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Bad request"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Bad request"
+        - '401':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Unauthorized"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "401"
+                  message:
+                    type: string
+                    example: "Unauthorized - Invalid Credentials"
+        - '500':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Server error"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "500"
+                  message:
+                    type: string
+                    example: "Internal Server Error"
+
+    - UserCustomerProfileResponses
+      - get
+        - '200':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "OK - Customer profile returned successfully"
+              data:
+                type: object
+                properties:
+                  firstName:
+                    type: string
+                    example: "John"
+                  lastName :
+                    type: string
+                    example: "Doe"
+                  phoneNumber:
+                    type: string
+                    example: "+234 8036 *** 234"
+                  other_details:
+                    type: object
+                    data: .....
+        - '400':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Bad request"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "400"
+                  message:
+                    type: string
+                    example: "Invalid user_id provided"
+        - '500':
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Server error"
+              errror:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: "500"
+                  message:
+                    type: string
+                    example: "Internal Server Error"
+      - put
+    - UserVendorProfileResponses
+      - get
+      - put
+
+  
