@@ -40,6 +40,7 @@ class UserRegistrationView(generics.CreateAPIView):
 
 
 class ActivationView(generics.CreateAPIView):
+    queryset = User.objects.all()
     serializer_class = ActivationSerializer
 
     def create(self, request, *args, **kwargs):
@@ -64,4 +65,36 @@ class ActivationView(generics.CreateAPIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class ResetrequestView(generics.GenericAPIView):
+    queryset = User.objects.all()
+    serializer_class = ResetrequestSerializer
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        try:
+            user = User.objects.get(email=email)
+            otp = user.generate_otp()
+             # Send the OTP via email
+            send_mail(
+                    'OTP Verification',
+                    f'Your Password reset OTP is {otp}',
+                    'youremail@example.com',
+                    [user.email],
+                    fail_silently=False,
+                    )
+            return Response({"Password reset OTP sent to your mail"}, status = status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"user not registered"}, status = status.HTTP_400_BAD_REQUEST)
 
+class ResetpasswordView(generics.RetrieveUpdateAPIView):
+#    querset = User.objects.all()
+    serializer_class = ResetpasswordSerializer
+    def put (self, request, *args, **kwargs):
+        serializer = self.get_serializer(data = request.data)
+        if serializer.is_valid(raise_exception=True):
+#            email = serializer.validated_data['email']
+ #           user = User.objects.get(email=email)
+            serializer.save()
+            return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

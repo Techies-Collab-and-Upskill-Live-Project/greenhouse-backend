@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
-import uuid
+import uuid, random
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -41,6 +41,7 @@ class User(AbstractUser):
         ('Admin', 'Admin'),
         ('Vendor', 'Vendor')
     ]
+    #password = models.CharField(max_length = 8, write_only = True)
     user_type = models.CharField(max_length=50, choices=USER_TYPE_CHOICES, default='Customer')
     is_active = models.BooleanField(default=False)
     activation_pin = models.CharField(max_length = 6, blank=True, null=True)
@@ -57,7 +58,7 @@ class User(AbstractUser):
         return self.email
     
     def generate_activation_pin(self):
-        import random
+#        import random
         pin = ''.join([str(random.randint(0,9)) for _ in range(6)])
         self.activation_pin = pin
         self.save()
@@ -67,6 +68,7 @@ class User(AbstractUser):
         pin = ''.join([str(random.randint(0,9)) for _ in range(6)])
         self.otp = pin
         self.save()
+        return pin
 
 class Customer(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -102,7 +104,9 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created and instance.user_type == 'Customer':
         Customer.objects.create(user=instance)
     elif created and instance.user_type == 'Admin':
-        Admin.objects.create(user=instance)
+        instance.is_staff = True
+        instance.is_superuser = True
+        instance.save()
     elif created and instance.user_type == 'Vendor':
         Vendor.objects.create(user=instance)
 
