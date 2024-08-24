@@ -1,6 +1,13 @@
 from rest_framework import serializers
 from .models import *
 
+
+def password_validator(self, password):
+    if len(password) <8:
+        raise serializer.ValidationError("Password too short")
+    return password
+
+
 class  UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only = True)
     class Meta:
@@ -18,32 +25,20 @@ class ActivationSerializer(serializers.ModelSerializer):
 
 class ResetrequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
+    def validator(self, email):
+        if not User.objects.filter(email=email).exists():
+            raise serializers.ValidationError("email not registered")
+        return email
 
 class ResetpasswordSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length = 6)
     new_password = serializers.CharField(max_length = 255, write_only = True)
     email = serializers.EmailField()
-    #class Meta: 
-      #  model = User
-       # fields = ['email', 'otp', 'new_password']
-
-    def validator(self, data):
-        email = data.get(email)
-        otp = data.get(otp)
-        #validate if email exist
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise serializer.ValidationError("invalid email")
-        if user.otp != otp:
-            raise serializer.ValidationError("invalid OTP")
-        return data
-    def safe(self):
-        email = self.Validated_data['email']
-        new_password = self.Validated_data['new_password']
-        user = User.objects.get(email=email)
+    def save(self, **kwargs):
+        email= self.validated_data['email']
+        new_password = self.validated_data['new_password']
+        user = User.objects.get(email = email)
         user.set_password(new_password)
         user.otp = None
         user.save()
         return user
-

@@ -27,6 +27,7 @@ class UserRegistrationView(generics.CreateAPIView):
         user = serializer.save()
         user.generate_activation_pin()
         
+        
         # Send the OTP via email
         send_mail(
             'OTP Verification',
@@ -36,7 +37,10 @@ class UserRegistrationView(generics.CreateAPIView):
             fail_silently=False,
         )
         
-        return Response({"message": "User registered successfully. OTP sent to your email"}, status=status.HTTP_201_CREATED)
+        return Response({"message": "User registered successfully. OTP sent to your email",
+            "refresh": str(refresh),
+            "access": access_token},
+            status=status.HTTP_201_CREATED)
 
 
 class ActivationView(generics.CreateAPIView):
@@ -87,14 +91,19 @@ class ResetrequestView(generics.GenericAPIView):
         except User.DoesNotExist:
             return Response({"user not registered"}, status = status.HTTP_400_BAD_REQUEST)
 
-class ResetpasswordView(generics.RetrieveUpdateAPIView):
-#    querset = User.objects.all()
+
+class ResetpasswordView(generics.GenericAPIView):
+    queryset = User.objects.all()
     serializer_class = ResetpasswordSerializer
-    def put (self, request, *args, **kwargs):
-        serializer = self.get_serializer(data = request.data)
-        if serializer.is_valid(raise_exception=True):
-#            email = serializer.validated_data['email']
- #           user = User.objects.get(email=email)
-            serializer.save()
-            return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception = True)
+        email = serializer.validated_data['email']
+        user = User.objects.get(email=email)
+        otp = serializer.validated_data['otp']
+        if user.otp != otp:
+            raise serializers.ValidationError("invalid OTP")
+        if 
+        serializer.save()
+        return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
