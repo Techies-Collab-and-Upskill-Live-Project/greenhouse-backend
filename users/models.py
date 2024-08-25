@@ -94,7 +94,9 @@ class Vendor(models.Model):
         ('Business', 'Business'),
         ('Individual', 'Individual')
     ]
-    account_type = models.CharField(max_length=50, choices=ACCOUNT_TYPE_CHOICES, default='Individual')
+    account_type = models.CharField(max_length=50, choices=ACCOUNT_TYPE_CHOICES, default='Individual', blank=True, null=True)
+    shop_name = models.CharField(max_length = 255, blank=True, null=True)
+    shipping_zone = models.CharField(max_length = 255, blank=True, null=True)
     where_you_hear = models.CharField(max_length=256,blank=True, null=True)
     policy_agreement  = models.BooleanField(default=False)
     cac_id = models.CharField(max_length=10,blank=True, null=True)
