@@ -4,8 +4,18 @@ from .views import *
 urlpatterns = [
     path('register', UserRegistrationView.as_view(), name='register'),
     path('activate', ActivationView.as_view(), name='activate_user'),
+<<<<<<< HEAD
     path('resetrequest', ResetrequestView.as_view(), name='resetrequest'),
     path('resetpassword', ResetpasswordView.as_view(), name='resetpassword'),
     
+=======
+    path('login', LoginView.as_view(), name='token_generation'),
+    path('vendor/country', VendorCountryView.as_view(), name='select-country'),
+    path('vendor/email', VendorEmailSubmissionView.as_view(), name='submit-email'),
+    path('vendor/activate', VendorOTPVerificationView.as_view(), name='activate-vendor'),
+    path('vendor/register', VendorRegistrationView.as_view(), name='register-vendor'),
+    path('vendor/update', VendorShopUpdateView.as_view(), name='individual-vendor'),
+
+>>>>>>> a0b1ecb65b234072b194dae4fc7e20fe438c63ae
 ]
 
