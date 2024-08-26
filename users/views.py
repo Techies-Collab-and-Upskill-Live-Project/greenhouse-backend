@@ -85,3 +85,13 @@ class LoginView(generics.GenericAPIView):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(generics.UpdateAPIView):
+    serializer_class = ChangePasswodSerializer
+    
+    def get_object(self):
+        '''
+        return the user making the requrst
+        '''
+        return self.request.user
