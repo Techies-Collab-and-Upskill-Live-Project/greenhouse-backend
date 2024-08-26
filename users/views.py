@@ -21,19 +21,14 @@ class UserRegistrationView(generics.CreateAPIView):
         if User.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
 
-        user = User(
-            email=email,
-        )
+        user = User(email=email)
         
-<<<<<<< HEAD
         
         # Send the OTP via email
-=======
         user.set_password(serializer.validated_data['password'])
         user.generate_activation_pin()
         user.save()
 
->>>>>>> a0b1ecb65b234072b194dae4fc7e20fe438c63ae
         send_mail(
             'OTP Verification',
             f'Your Activation PIN is {user.activation_pin}',
@@ -41,16 +36,8 @@ class UserRegistrationView(generics.CreateAPIView):
             [user.email],
             fail_silently=False,
         )
-<<<<<<< HEAD
         
-        return Response({"message": "User registered successfully. OTP sent to your email",
-            "refresh": str(refresh),
-            "access": access_token},
-            status=status.HTTP_201_CREATED)
-=======
-
         return Response({"message": "User registered successfully. OTP sent to your email"}, status=status.HTTP_201_CREATED)
->>>>>>> a0b1ecb65b234072b194dae4fc7e20fe438c63ae
 
 
 class ActivationView(generics.CreateAPIView):
@@ -208,7 +195,6 @@ class VendorShopUpdateView(generics.UpdateAPIView):
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
 
-<<<<<<< HEAD
 class ResetrequestView(generics.GenericAPIView):
     queryset = User.objects.all()
     serializer_class = ResetrequestSerializer
@@ -242,14 +228,14 @@ class ResetpasswordView(generics.GenericAPIView):
         email = serializer.validated_data['email']
         user = User.objects.get(email=email)
         otp = serializer.validated_data['otp']
+
         if user.otp != otp:
             raise serializers.ValidationError("invalid OTP")
-        if 
+        if user.email != email:
+            raise serializers.ValidationError("email does not match")
         serializer.save()
         return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
-=======
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        #return Response(serializer.data, status=status.HTTP_200_OK)
 
     def perform_update(self, serializer):
         serializer.save()
->>>>>>> a0b1ecb65b234072b194dae4fc7e20fe438c63ae
