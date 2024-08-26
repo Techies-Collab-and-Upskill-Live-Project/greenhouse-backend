@@ -1,4 +1,5 @@
 from django.db import models
+<<<<<<< HEAD
 # <<<<<<< HEAD
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 import uuid, random
@@ -6,6 +7,10 @@ import uuid, random
 from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
 import uuid
 #>>>>>>> a0b1ecb65b234072b194dae4fc7e20fe438c63ae
+=======
+import uuid, random
+from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
+>>>>>>> 073c155147251b3f57492ec26476d5436c039782
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -56,7 +61,6 @@ class User(AbstractUser, PermissionsMixin):
         return self.email
     
     def generate_activation_pin(self):
-#        import random
         pin = ''.join([str(random.randint(0,9)) for _ in range(6)])
         self.activation_pin = pin
         self.save()
