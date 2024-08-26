@@ -10,6 +10,7 @@ from .models import *
 
 class  UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only = True)
+
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -41,6 +42,7 @@ class ResetpasswordSerializer(serializers.Serializer):
         user.save()
         return user
 
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -51,6 +53,20 @@ class VendorCountrySerializer(serializers.Serializer):
 class VendorEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
     
+
+class ChangePasswodSerializer(serializers.Serializer):
+    current_password = serializers.CharField(max_length=10, required=True, write_only=True)
+    new_password = serializers.CharField(max_length=10, required=True, write_only=True)
+    confirm_new_pasword = serializers.CharField(max_length=10, required=True, write_only=True)
+
+    def validate(self, data):
+        if data.get('new_password') == data.get('confirm_new_password'):
+            raise serializers.ValidationError('New Password do not match')
+        user = self.context['request'].user
+        if not user.check_password(data.get('current_password')):
+            raise serializers.ValidationError('Incorrect current password')
+        return data
+
 
 class VendorRegistrationSerializer(serializers.ModelSerializer):
     user_type = serializers.ChoiceField(choices=User.USER_TYPE_CHOICES, default='Vendor',)

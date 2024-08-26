@@ -40,6 +40,7 @@ class UserRegistrationView(generics.CreateAPIView):
         return Response({"message": "User registered successfully. OTP sent to your email"}, status=status.HTTP_201_CREATED)
 
 
+
 class ActivationView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = ActivationSerializer
@@ -86,6 +87,18 @@ class LoginView(generics.GenericAPIView):
             # 'refresh': str(refresh),
             'access': str(refresh.access_token),
         }, status=status.HTTP_200_OK)
+
+
+
+class ChangePasswordView(generics.UpdateAPIView):
+    serializer_class = ChangePasswodSerializer
+    
+    def get_object(self):
+        '''
+        return the user making the requrst
+        '''
+        return self.request.user
+
         
 
 class  LogoutView(generics.GenericAPIView):
@@ -195,6 +208,7 @@ class VendorShopUpdateView(generics.UpdateAPIView):
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
 
+
 class ResetrequestView(generics.GenericAPIView):
     queryset = User.objects.all()
     serializer_class = ResetrequestSerializer
@@ -239,3 +253,4 @@ class ResetpasswordView(generics.GenericAPIView):
 
     def perform_update(self, serializer):
         serializer.save()
+
