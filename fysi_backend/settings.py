@@ -15,6 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
+#SECRET_KEY = 'django-insecure-*5v&y8g+*y$9-$d#(%v-$b(f4*w)+i10zbr+n^frbu_b4%q&$0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
     'orders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'drf_yasg',
 ]
 
 
@@ -82,7 +84,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
@@ -93,6 +95,26 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=90),  # Adjust as needed
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),     # Adjust as needed
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# SWAGGER_SETTINGS = {
+#    'SECURITY_DEFINITIONS': {
+#       'JWT': {
+#             'type': 'apiKey',
+#             'name': 'Authorization',
+#             'in': 'header'
+#       }
+#    }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

@@ -1,6 +1,11 @@
 from django.db import models
+# <<<<<<< HEAD
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+import uuid, random
+# =======
 from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
 import uuid
+#>>>>>>> a0b1ecb65b234072b194dae4fc7e20fe438c63ae
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -34,6 +39,7 @@ class User(AbstractUser, PermissionsMixin):
         ('Admin', 'Admin'),
         ('Vendor', 'Vendor')
     ]
+    #password = models.CharField(max_length = 8, write_only = True)
     user_type = models.CharField(max_length=50, choices=USER_TYPE_CHOICES, default='Customer')
     is_active = models.BooleanField(default=False)
     activation_pin = models.CharField(max_length = 6, blank=True, null=True)
@@ -50,7 +56,7 @@ class User(AbstractUser, PermissionsMixin):
         return self.email
     
     def generate_activation_pin(self):
-        import random
+#        import random
         pin = ''.join([str(random.randint(0,9)) for _ in range(6)])
         self.activation_pin = pin
         self.save()
@@ -60,6 +66,7 @@ class User(AbstractUser, PermissionsMixin):
         pin = ''.join([str(random.randint(0,9)) for _ in range(6)])
         self.otp = pin
         self.save()
+        return pin
 
 class Customer(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -94,7 +101,9 @@ class Vendor(models.Model):
         ('Business', 'Business'),
         ('Individual', 'Individual')
     ]
-    account_type = models.CharField(max_length=50, choices=ACCOUNT_TYPE_CHOICES, default='Individual')
+    account_type = models.CharField(max_length=50, choices=ACCOUNT_TYPE_CHOICES, default='Individual', blank=True, null=True)
+    shop_name = models.CharField(max_length = 255, blank=True, null=True)
+    shipping_zone = models.CharField(max_length = 255, blank=True, null=True)
     where_you_hear = models.CharField(max_length=256,blank=True, null=True)
     policy_agreement  = models.BooleanField(default=False)
     cac_id = models.CharField(max_length=10,blank=True, null=True)
@@ -111,7 +120,9 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created and instance.user_type == 'Customer':
         Customer.objects.create(user=instance)
     elif created and instance.user_type == 'Admin':
-        Admin.objects.create(user=instance)
+        instance.is_staff = True
+        instance.is_superuser = True
+        instance.save()
     elif created and instance.user_type == 'Vendor':
         Vendor.objects.create(user=instance)
 
