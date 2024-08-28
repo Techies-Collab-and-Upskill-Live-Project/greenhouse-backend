@@ -8,6 +8,8 @@ from .models import *
 import random
 from django.core.cache import cache
 from django.contrib.auth import authenticate
+from django.db import transaction, IntegrityError
+from django.core.exceptions import ValidationError
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -99,6 +101,50 @@ class ChangePasswordView(generics.UpdateAPIView):
         '''
         return self.request.user
 
+class ResetrequestView(generics.GenericAPIView):
+    queryset = User.objects.all()
+    serializer_class = ResetrequestSerializer
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        try:
+            user = User.objects.get(email=email)
+            otp = user.generate_otp()
+             # Send the OTP via email
+            send_mail(
+                    'OTP Verification',
+                    f'Your Password reset OTP is {otp}',
+                    'youremail@example.com',
+                    [user.email],
+                    fail_silently=False,
+                    )
+            return Response({"Password reset OTP sent to your mail"}, status = status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"user not registered"}, status = status.HTTP_400_BAD_REQUEST)
+
+
+class ResetpasswordView(generics.GenericAPIView):
+    queryset = User.objects.all()
+    serializer_class = ResetpasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception = True)
+        email = serializer.validated_data['email']
+        user = User.objects.get(email=email)
+        otp = serializer.validated_data['otp']
+
+        if user.otp != otp:
+            raise serializers.ValidationError("invalid OTP")
+        if user.email != email:
+            raise serializers.ValidationError("email does not match")
+        serializer.save()
+        return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
+        #return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def perform_update(self, serializer):
+        serializer.save()
         
 
 class  LogoutView(generics.GenericAPIView):
@@ -166,91 +212,89 @@ class VendorOTPVerificationView(generics.GenericAPIView):
             return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
 class VendorRegistrationView(generics.CreateAPIView):
-    
     serializer_class = VendorRegistrationSerializer
-    # permission_classes = [permissions.IsAuthenticated,]
 
     def create(self, request, *args, **kwargs):
         if not request.session.get('country') or not request.session.get('email_verified'):
             return Response({"error": "Please complete country selection and email verification first"}, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        user = self.perform_create(serializer)
-        user.is_active = True
-        user.save()
-        headers = self.get_success_headers(serializer.data)
-        return Response({
-            "message": "User registered successfully.",
-            "user": serializer.data,
-            "is_active": user.is_active
-        }, status=status.HTTP_201_CREATED, headers=headers)
-
-    def perform_create(self, serializer):
-        return serializer.save()
-    
-
-class VendorShopUpdateView(generics.UpdateAPIView):
-    queryset = Vendor.objects.all()
-    serializer_class = FlexibleVendorShopSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user.vendor
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        if getattr(instance, '_prefetched_objects_cache', None):
-            instance._prefetched_objects_cache = {}
-
-
-class ResetrequestView(generics.GenericAPIView):
-    queryset = User.objects.all()
-    serializer_class = ResetrequestSerializer
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data = request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
-        try:
-            user = User.objects.get(email=email)
-            otp = user.generate_otp()
-             # Send the OTP via email
-            send_mail(
-                    'OTP Verification',
-                    f'Your Password reset OTP is {otp}',
-                    'youremail@example.com',
-                    [user.email],
-                    fail_silently=False,
-                    )
-            return Response({"Password reset OTP sent to your mail"}, status = status.HTTP_200_OK)
-        except User.DoesNotExist:
-            return Response({"user not registered"}, status = status.HTTP_400_BAD_REQUEST)
-
-
-class ResetpasswordView(generics.GenericAPIView):
-    queryset = User.objects.all()
-    serializer_class = ResetpasswordSerializer
-
-    def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception = True)
-        email = serializer.validated_data['email']
-        user = User.objects.get(email=email)
-        otp = serializer.validated_data['otp']
+        serializer.is_valid(raise_exception=True)
+        
+        # Store the validated data in the session instead of creating a user
+        request.session['phone_number'] = serializer.validated_data['phone_number']
+        request.session['password'] = serializer.validated_data['password']
+        request.session['user_type'] = serializer.validated_data['user_type']
+        
+        return Response({
+            "message": "Registration information stored successfully. Please complete vendor shop information.",
+        }, status=status.HTTP_200_OK)
 
-        if user.otp != otp:
-            raise serializers.ValidationError("invalid OTP")
-        if user.email != email:
-            raise serializers.ValidationError("email does not match")
-        serializer.save()
-        return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
-        #return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def perform_update(self, serializer):
-        serializer.save()
+
+class FlexibleVendorShopView(generics.CreateAPIView):
+    serializer_class = FlexibleVendorShopSerializer
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        required_keys = ['country', 'email_verified', 'phone_number', 'password', 'user_type']
+        if not all(key in request.session for key in required_keys):
+            return Response({"error": "Please complete all previous registration steps"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            # Check if user already exists
+            user = User.objects.filter(email=request.session['email_verified']).first()
+            
+            if user:
+                # If user exists, update fields
+                user.is_active = True
+                user.phone_number = request.session['phone_number']
+                user.user_type = request.session['user_type']
+                user.country = request.session['country']
+                user.set_password(request.session['password'])
+                user.save()
+            else:
+                # Create new user
+                user = User.objects.create_user(
+                    email=request.session['email_verified'],
+                    password=request.session['password'],
+                    is_active=True,
+                    phone_number=request.session['phone_number'],
+                    user_type=request.session['user_type'],
+                    country=request.session['country']
+                )
+
+            # Get or create vendor
+            vendor, created = Vendor.objects.get_or_create(
+                user=user,
+                defaults=serializer.validated_data
+            )
+            
+            if not created:
+                # If vendor exists, update fields
+                for key, value in serializer.validated_data.items():
+                    setattr(vendor, key, value)
+                vendor.save()
+
+            return Response({
+                "message": "Vendor registered successfully.",
+                # "user": UserSerializer(user).data,
+                "vendor": serializer.data,
+            }, status=status.HTTP_201_CREATED)
+        
+        except IntegrityError as e:
+            transaction.set_rollback(True)
+            return Response({"error": f"Database integrity error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            transaction.set_rollback(True)
+            return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            # Clear the session data
+            for key in required_keys:
+                request.session.pop(key, None)
+
+
 

@@ -16,7 +16,6 @@ urlpatterns = [
     path('vendor/email', VendorEmailSubmissionView.as_view(), name='submit-email'),
     path('vendor/activate', VendorOTPVerificationView.as_view(), name='activate-vendor'),
     path('vendor/register', VendorRegistrationView.as_view(), name='register-vendor'),
-    path('vendor/update', VendorShopUpdateView.as_view(), name='individual-vendor'),
-
+    path('vendor/shop', FlexibleVendorShopView.as_view(), name='individual-vendor'),
 ]
 
