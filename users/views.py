@@ -95,7 +95,7 @@ class ChangePasswordView(generics.UpdateAPIView):
     
     def get_object(self):
         '''
-        return the user making the requrst
+        return the user making the request
         '''
         return self.request.user
 
