@@ -41,19 +41,7 @@ class ResetpasswordSerializer(serializers.Serializer):
         user.otp = None
         user.save()
         return user
-
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
     
-class VendorCountrySerializer(serializers.Serializer):
-    country = serializers.CharField(max_length=100)
-    
-class VendorEmailSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    
-
 class ChangePasswodSerializer(serializers.Serializer):
     current_password = serializers.CharField(max_length=10, required=True, write_only=True)
     new_password = serializers.CharField(max_length=10, required=True, write_only=True)
@@ -68,6 +56,18 @@ class ChangePasswodSerializer(serializers.Serializer):
         return data
 
 
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    
+class VendorCountrySerializer(serializers.Serializer):
+    country = serializers.CharField(max_length=100)
+    
+class VendorEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    
+
+
 class VendorRegistrationSerializer(serializers.ModelSerializer):
     user_type = serializers.ChoiceField(choices=User.USER_TYPE_CHOICES, default='Vendor',)
 
@@ -76,12 +76,12 @@ class VendorRegistrationSerializer(serializers.ModelSerializer):
         fields = ('phone_number', 'password', 'user_type',)
         extra_kwargs = {'password': {'write_only': True}}
 
-    def create(self, validated_data):
-        # Email and country are added here from the session
-        validated_data['email'] = self.context['request'].session['email_verified']
-        validated_data['country'] = self.context['request'].session['country']
-        user = User.objects.create_user(**validated_data)
-        return user
+    # def create(self, validated_data):
+    #     # Email and country are added here from the session
+    #     validated_data['email'] = self.context['request'].session['email_verified']
+    #     validated_data['country'] = self.context['request'].session['country']
+    #     user = User.objects.create_user(**validated_data)
+    #     return user
     
     def __init__(self, *args, **kwargs):
         super(VendorRegistrationSerializer, self).__init__(*args, **kwargs)
@@ -92,12 +92,14 @@ class FlexibleVendorShopSerializer(serializers.ModelSerializer):
     account_type = serializers.ChoiceField(choices=Vendor.ACCOUNT_TYPE_CHOICES)
     cac_id = serializers.CharField(required=False)
     cac_certificate = serializers.FileField(required=False)
-    
+    email = serializers.EmailField(read_only=True)
+    country = serializers.CharField(read_only=True)
+    phone_number = serializers.CharField(read_only=True)
 
     class Meta:
         model = Vendor
         fields = ['account_type', 'shop_name', 'where_you_hear', 'policy_agreement', 'shipping_zone', 
-                  'cac_id', 'cac_certificate', 'updated_at']
+                  'cac_id', 'cac_certificate', 'email', 'country', 'phone_number']
 
     def validate(self, data):
         account_type = data.get('account_type')
@@ -108,7 +110,6 @@ class FlexibleVendorShopSerializer(serializers.ModelSerializer):
             if not data.get('cac_certificate'):
                 raise serializers.ValidationError({"cac_certificate": "CAC Certificate is required for Business accounts."})
         elif account_type == 'Individual':
-            # Remove business-specific fields if they're provided
             data.pop('cac_id', None)
             data.pop('cac_certificate', None)
         
