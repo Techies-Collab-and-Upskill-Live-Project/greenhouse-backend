@@ -1,10 +1,15 @@
 from django.db import models
+<<<<<<< HEAD
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 import uuid, random
 from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
 import uuid
 import uuid, random
 from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
+=======
+import uuid, random
+from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
+>>>>>>> c3ce5ad781aa38d815dee2292cce1b31125ab3ff
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
