@@ -2,25 +2,56 @@ from rest_framework import serializers
 from .models import *
 
 
-#def password_validator(self, password):
- #   if len(password) <8:
-  #      raise serializer.ValidationError("Password too short")
-   # return password
-
-
-class  UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only = True)
-
-class CustomerSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
+    retype_password = serializers.CharField(write_only=True)
     class Meta:
         model = User
-        fields = ['email', 'password']
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = ('email', 'phone_number', 'password', 'retype_password', 'country', 'user_type')
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+    def validate(self, data):
+        if data['password'] != data['retype_password']:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data
 
+#Registrations based on user_type
+class CustomerRegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = '__all__'
+
+class VendorRegistrationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Vendor
+        fields = '__all__'
+
+
+class AdminRegistrationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Admin
+        fields = '__all__'
+
+#additional registration details based on user_type
+#class ExtendRegSerializer(serializers.Serializer):
+   # def get_serializer_class(self, user_type):
+    #    if user_type == 'Customer':
+     #       return CustomerRegistrationSerializer
+      #  if user_type == 'Admin':
+       #     return AdminRegistrationSerializer
+        #else:
+         #   return VendorRegistrationSerializer
+    #def create ()
+     #   class meta:
+      #  model = User
+        #fields = []
+
+#Other actions
 class ActivationSerializer(serializers.Serializer):
     email = serializers.EmailField()
     activation_pin = serializers.CharField(max_length=6)
-
 
 class ResetrequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -42,7 +73,7 @@ class ResetpasswordSerializer(serializers.Serializer):
         user.save()
         return user
     
-class ChangePasswodSerializer(serializers.Serializer):
+class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(max_length=10, required=True, write_only=True)
     new_password = serializers.CharField(max_length=10, required=True, write_only=True)
     confirm_new_password = serializers.CharField(max_length=10, required=True, write_only=True)
@@ -55,7 +86,6 @@ class ChangePasswodSerializer(serializers.Serializer):
             raise serializers.ValidationError('Incorrect current password')
         return data
 
-
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -66,28 +96,6 @@ class VendorCountrySerializer(serializers.Serializer):
 class VendorEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
     
-
-
-class VendorRegistrationSerializer(serializers.ModelSerializer):
-    user_type = serializers.ChoiceField(choices=User.USER_TYPE_CHOICES, default='Vendor',)
-
-    class Meta:
-        model = User
-        fields = ('phone_number', 'password', 'user_type',)
-        extra_kwargs = {'password': {'write_only': True}}
-
-    # def create(self, validated_data):
-    #     # Email and country are added here from the session
-    #     validated_data['email'] = self.context['request'].session['email_verified']
-    #     validated_data['country'] = self.context['request'].session['country']
-    #     user = User.objects.create_user(**validated_data)
-    #     return user
-    
-    def __init__(self, *args, **kwargs):
-        super(VendorRegistrationSerializer, self).__init__(*args, **kwargs)
-        self.fields['user_type'].initial = 'Vendor'
-        
-        
 class FlexibleVendorShopSerializer(serializers.ModelSerializer):
     account_type = serializers.ChoiceField(choices=Vendor.ACCOUNT_TYPE_CHOICES)
     cac_id = serializers.CharField(required=False)
