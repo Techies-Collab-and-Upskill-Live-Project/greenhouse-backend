@@ -1,0 +1,50 @@
+from rest_framework import viewsets, status, generics, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import User
+from .serializers import *
+
+class UserViewSet(viewsets.GenericViewSet):
+    serializer_class = UserSerializer
+    def get_serializer_class(self):
+        print(self.action)
+        if self.action == 'activate':
+            return ActivateSerializer
+        elif self.action == 'login':
+            print("Welcome")
+            return LoginSerializer
+        return UserSerializer
+
+
+    @action(detail=False, methods=['post'], url_path='register')
+    def register(self, request):
+        serializer = self.get_serializer(data=request.data)
+        
+#        serializer = serializer_class(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+        user_type = serializer.validated_data.get('user_type')
+        if User.objects.filter(email=email).exists():
+            return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
+        if user_type == 'Admin':
+            user = User.objects.create_superuser(email=email, password= password, user_type=user_type)
+        else:
+            user = User.objects.create_user(email=email, password= password, user_type=user_type)
+        response_data, status_code = create_and_send_otp(user)
+        return Response(response_data, status=status_code)
+
+    @action(detail=False, methods=['post'], url_path='login')
+    def login(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = authenticate(email=serializer.validated_data['email'], password=serializer.validated_data['password'])
+        if user is None:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user.is_active:
+            return Response({'error': 'User account is not active'}, status=status.HTTP_401_UNAUTHORIZED)
+        refresh = RefreshToken.for_user(user)
+        return Response({
+     'refresh': str(refresh),
+        'access': str(refresh.access_token),
+        }, status=status.HTTP_200_OK)

@@ -75,7 +75,10 @@ class Pricing(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='pricing')
     base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    #price after logistics
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    #discount price
+    discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     sales_start_date = models.DateField()
     sales_end_date = models.DateField(null=True, blank=True)
     
