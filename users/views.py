@@ -148,7 +148,13 @@ class UserViewSet(viewsets.ModelViewSet):
 #PASSWORDS ACTIONS
     @action(detail=False, methods=['put'], url_path='changepassword', permission_classes=[IsAuthenticated])
     def change_password(self, request):
-        serializer_class = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        new_password = serializer.validated_data['new_password']
+        user.set_password(new_password)
+        user.save()
+
         return Response({"Password changed successfully!"}, status = status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'], url_path='resetrequest')
@@ -181,8 +187,8 @@ class UserViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError("email does not match")
         if new_password != password_again:
             raise serializers.ValidationError("Passwords do not match")
-        user.password = make_password(new_password)
         user.otp = None
+        user.set_password(new_password)
         user.save()
         return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
 
