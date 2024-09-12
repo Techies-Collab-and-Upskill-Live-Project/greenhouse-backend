@@ -107,24 +107,3 @@ class Vendor(models.Model):
 
     def __str__(self):
         return f'Vendor: {self.user.email}'
-
-#create and save user profile signals
-@receiver(post_save, sender=User)
-#def create_user_profile(sender, instance, created, **kwargs):
- #   if created and instance.user_type == 'Customer':
-  #      Customer.objects.create(user=instance)
-   # elif created and instance.user_type == 'Admin':
-    #    instance.is_staff = True
-     #   instance.is_superuser = True
-      #  instance.save()
-    #elif created and instance.user_type == 'Vendor':
-     #   Vendor.objects.create(user=instance)
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    if instance.user_type == 'Customer' and hasattr(instance, 'customer'):
-        instance.customer.save()
-    elif instance.user_type == 'Admin' and hasattr(instance, 'admin'):
-        instance.admin.save()
-    elif instance.user_type == 'Vendor' and hasattr(instance, 'vendor'):
-        instance.vendor.save()

@@ -6,7 +6,7 @@ class UserSerializer(serializers.ModelSerializer):
     retype_password = serializers.CharField(write_only=True)
     class Meta:
         model = User
-        fields = ('email', 'phone_number', 'password', 'retype_password', 'country', 'user_type')
+        fields = ('id','email', 'phone_number', 'password', 'retype_password', 'country', 'user_type')
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -16,23 +16,16 @@ class UserSerializer(serializers.ModelSerializer):
         return data
 
 #Registrations based on user_type
-class CustomerRegistrationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Customer
-        fields = '__all__'
 
-class VendorRegistrationSerializer(serializers.ModelSerializer):
-
+class VendorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendor
-        fields = '__all__'
+        fields = ['account_type','shop_name','cac_id','cac_certificate']
 
-
-class AdminRegistrationSerializer(serializers.ModelSerializer):
-
+class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Admin
-        fields = '__all__'
+        model = Customer
+        fields = ['first_name','last_name','street_address','city','postal_code']
 
 #additional registration details based on user_type
 #class ExtendRegSerializer(serializers.Serializer):
@@ -63,15 +56,8 @@ class ResetrequestSerializer(serializers.Serializer):
 class ResetpasswordSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length = 6)
     new_password = serializers.CharField(max_length = 255, write_only = True)
+    password_again = serializers.CharField(max_length = 255, write_only = True)
     email = serializers.EmailField()
-    def save(self, **kwargs):
-        email= self.validated_data['email']
-        new_password = self.validated_data['new_password']
-        user = User.objects.get(email = email)
-        user.set_password(new_password)
-        user.otp = None
-        user.save()
-        return user
     
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(max_length=10, required=True, write_only=True)

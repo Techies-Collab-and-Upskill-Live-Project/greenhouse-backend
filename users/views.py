@@ -3,6 +3,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import User 
 from .serializers import *
+from rest_framework.permissions import IsAuthenticated 
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from django.core.exceptions import PermissionDenied
+from django.contrib.auth.hashers import make_password
 
 from django.shortcuts import render
 from django.core.mail import send_mail
@@ -43,40 +47,25 @@ def create_and_send_otp(user):
 
 #handle registration based on selected user_type
 class UserViewSet(viewsets.ModelViewSet):
-    #serializer_class = UserSerializer
-    #select specific serializer
+    queryset = User.objects.all()
+#    serializer_class = UserSerializer
     def get_serializer_class(self):
         if self.action == 'register':
             return UserSerializer
-        elif self.action == 'extendreg':
-            user_type = self.validate.data.get('user_type')
-            if user_type == "Admin":
-                return AdminRegistrationSerializer
-            elif user_type == "Vendor":
-                return VendorRegistrationSerializer
-            elif user_type == "Customer":
-                return CustomerRegistrationSerializer
         elif self.action == 'login':
             return LoginSerializer
-        elif self.action == 'resetrequest':
+        elif self.action in ['resetrequest', 'reactivate']:
             return ResetrequestSerializer
-        elif self.action == 'logout':
-            return LogoutSerializer
         elif self.action == 'resetpassword':
             return ResetpasswordSerializer
         elif self.action == 'change_password':
             return ChangePasswordSerializer
         elif self.action == 'activate':
             return ActivationSerializer
-
-    def get_queryset(self):
-        user_type = self.request.data.get("user_type")
-        if user_type == 'Vendor':
-            return Vendor.objects.all()
-        elif user_type == 'Admin':
-            return Admin.objects.all()
         else:
-            return Customer.objects.all()
+            return UserSerializer
+
+
 
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):
@@ -94,6 +83,19 @@ class UserViewSet(viewsets.ModelViewSet):
         response_data, status_code = create_and_send_otp(user)
 
         return Response(response_data, status=status_code)
+    @action(detail=False, methods=['post'], url_path='reactivate')
+    def reactivate(self, request):
+        queryset = User.objects.all()
+        serializer = self.get_serializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError
+        response_data, status_code = create_and_send_otp(user)
+        return Response(response_data, status=status_code)
+
 
     @action(detail=False, methods=['post'], url_path='activate')
     def activate(self, request):
@@ -105,7 +107,7 @@ class UserViewSet(viewsets.ModelViewSet):
             user = User.objects.get(email=email)
             if user.otp == activation_pin:
                 user.is_active = True
-                user.activation_pin = None
+                user.otp = None
                 user.save()
                 return Response({'message': 'Account activated successfully!'}, status=status.HTTP_200_OK)
             else:
@@ -113,11 +115,13 @@ class UserViewSet(viewsets.ModelViewSet):
         except User.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+#
+#LOGIN/OUT ACTIONS
     @action(detail=False, methods=['post'], url_path='login')
     def login(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = authenticate(email=serializer.validated_data['email'], password=serializer.validated_data['password'])
+        user = authenticate(request, email=serializer.validated_data['email'], password=serializer.validated_data['password'])
         if user is None:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
@@ -128,14 +132,24 @@ class UserViewSet(viewsets.ModelViewSet):
         'access': str(refresh.access_token),
         }, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['put'], url_path='changepassword')
+    @action(detail=False, methods=['post'], url_path='logout')
+    def logout(self, request):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            refresh_token = request.COOKIES['refresh']
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to logout'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+#PASSWORDS ACTIONS
+    @action(detail=False, methods=['put'], url_path='changepassword', permission_classes=[IsAuthenticated])
     def change_password(self, request):
         serializer_class = self.get_serializer(data=request.data)
-        
-        def get_object(self):
-            #return the user making the request
-            
-            return self.request.user
+        return Response({"Password changed successfully!"}, status = status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'], url_path='resetrequest')
     def resetrequest(self, request):
@@ -158,47 +172,83 @@ class UserViewSet(viewsets.ModelViewSet):
         email = serializer.validated_data['email']
         user = User.objects.get(email=email)
         otp = serializer.validated_data['otp']
+        new_password=serializer.validated_data['new_password']
+        password_again=serializer.validated_data['password_again']
 
         if user.otp != otp:
             raise serializers.ValidationError("invalid OTP")
         if user.email != email:
             raise serializers.ValidationError("email does not match")
-        serializer.save()
+        if new_password != password_again:
+            raise serializers.ValidationError("Passwords do not match")
+        user.password = make_password(new_password)
+        user.otp = None
+        user.save()
         return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['post'], url_path='logout')
-    def logout(self, request):
-        serializer = self.get_serializer(data=request.data)
-        try:
-            refresh_token = request.COOKIES['refresh']
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': 'Failed to logout'}, status=status.HTTP_400_BAD_REQUEST)
-    
-# Other Vendor Registratinon processes, the views 
-        
-#class VendorCountryView(generics.CreateAPIView):
- #   serializer_class = VendorCountrySerializer
-    
-  #  def create(self, request, *args, **kwargs):
-   #     serializer = self.get_serializer(data=request.data)
-    #    serializer.is_valid(raise_exception=True)
-     #   request.session['country'] = serializer.validated_data['country']
-      #  return Response({'message': 'Country selected successfully'}, status=status.HTTP_200_OK)
+#class ProfileViewSet(viewsets.ModelViewSet):
+ #   queryset = User.objects.all()
+  #  def get_serializer_class(self):
+   #     user = self.request.user
+    #    if user.user_type == 'Vendor':
+     #       return VendorSerializer
+      #  else:
+       #     return CustomerSerializer
 
-    #extend users refistration based on user_type
-    @action(detail=False, methods=['post'], url_path='extendreg')
-    def extendreg(self, request):
+#    serializer_class = UserSerializer
+#    authentication_classes = [JWTAuthentication]
+#    permission_classes = [IsAuthenticated]
+
+ 
+#extend profile based on user_type
+   # @action(detail=False, methods=['put'], url_path  = 'update_profile')
+class ProfileViewSet(viewsets.ModelViewSet):
+   # serializer = self.get_serializer(data=request.data)
+    #queryset = self.get_queryset
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 'Vendor':
+            return Vendor.objects.filter(user=user)
+        elif user.user_type == 'Customer':
+            return Customer.objects.filter(user=user)
+        raise PermissionDenied("Invalid user type")
+
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if user.user_type == 'Vendor':
+            return VendorSerializer
+        elif user.user_type == 'Customer':
+            return CustomerSerializer
+        raise PermissionDenied("Invalid user type")
+
+    @action(detail=False, methods=['put', 'patch'])
+    #def update_profile(self, request):
+     #   queryset = self.get_queryset()
+      #  instance = queryset.first()
+       # serializer_class = self.get_serializer_class()
+        #serializer = serializer_class(instance=instance, data=request.data, partial=True)
+        #if serializer.is_valid():
+         #   serializer.save()
+          #  return Response(serializer.data, status=status.HTTP_200_OK)
+        #return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+    def update_profile(self, request):
         serializer = self.get_serializer(data=request.data)
-        self.queryset = self.get_queryset()
-        serializer.is_valid(raise_exception=True)
-        user = self.get_object()
-        self.perform_update(serializer)
-        return Response({
-            "message": "Registration information stored successfully. Please complete vendor shop information.",
-        }, status=status.HTTP_200_OK)
+        queryset = self.get_queryset
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
 #class VendorEmailSubmissionView(generics.CreateAPIView):
  #   serializer_class = VendorEmailSerializer
     
@@ -223,18 +273,6 @@ class UserViewSet(viewsets.ModelViewSet):
         
        # return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
         
-#class VendorOTPVerificationView(generics.GenericAPIView):
- #   serializer_class = ActivationSerializer
-  #  def post(self, request):
-   #     serializer = self.get_serializer(data=request.data)
-    #    serializer.is_valid(raise_exception=True)
-     #   email = serializer.validated_data['email']
-      #  otp = serializer.validated_data['activation_pin']
-       # response_data, status_code = verify_otp(email, otp)
-        #if status_code == status.HTTPS_200_OK:
-         #   request.session['email_verified'] = email
-          #  return Response(response_data, status = status_code)
-
 
 #class VendorRegistrationView(generics.CreateAPIView):
 #    serializer_class = VendorRegistrationSerializer
@@ -321,6 +359,3 @@ class UserViewSet(viewsets.ModelViewSet):
             # Clear the session data
          #   for key in required_keys:
           #      request.session.pop(key, None)
-
-
-
