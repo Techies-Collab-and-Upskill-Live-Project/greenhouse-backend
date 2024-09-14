@@ -27,19 +27,6 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ['first_name','last_name','street_address','city','postal_code']
 
-#additional registration details based on user_type
-#class ExtendRegSerializer(serializers.Serializer):
-   # def get_serializer_class(self, user_type):
-    #    if user_type == 'Customer':
-     #       return CustomerRegistrationSerializer
-      #  if user_type == 'Admin':
-       #     return AdminRegistrationSerializer
-        #else:
-         #   return VendorRegistrationSerializer
-    #def create ()
-     #   class meta:
-      #  model = User
-        #fields = []
 
 #Other actions
 class ActivationSerializer(serializers.Serializer):

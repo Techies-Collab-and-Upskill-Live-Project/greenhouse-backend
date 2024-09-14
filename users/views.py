@@ -132,7 +132,7 @@ class UserViewSet(viewsets.ModelViewSet):
         'access': str(refresh.access_token),
         }, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['post'], url_path='logout')
+    @action(detail=False, methods=['post'], url_path='logout', permission_classes=[IsAuthenticated])
     def logout(self, request):
         serializer = self.get_serializer(data=request.data)
         try:
@@ -192,25 +192,9 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save()
         return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
 
-#class ProfileViewSet(viewsets.ModelViewSet):
- #   queryset = User.objects.all()
-  #  def get_serializer_class(self):
-   #     user = self.request.user
-    #    if user.user_type == 'Vendor':
-     #       return VendorSerializer
-      #  else:
-       #     return CustomerSerializer
-
-#    serializer_class = UserSerializer
-#    authentication_classes = [JWTAuthentication]
-#    permission_classes = [IsAuthenticated]
-
  
 #extend profile based on user_type
-   # @action(detail=False, methods=['put'], url_path  = 'update_profile')
 class ProfileViewSet(viewsets.ModelViewSet):
-   # serializer = self.get_serializer(data=request.data)
-    #queryset = self.get_queryset
     def get_queryset(self):
         user = self.request.user
         if user.user_type == 'Vendor':
@@ -228,19 +212,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
             return CustomerSerializer
         raise PermissionDenied("Invalid user type")
 
-    @action(detail=False, methods=['put', 'patch'])
-    #def update_profile(self, request):
-     #   queryset = self.get_queryset()
-      #  instance = queryset.first()
-       # serializer_class = self.get_serializer_class()
-        #serializer = serializer_class(instance=instance, data=request.data, partial=True)
-        #if serializer.is_valid():
-         #   serializer.save()
-          #  return Response(serializer.data, status=status.HTTP_200_OK)
-        #return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
+    @action(detail=False, methods=['put', 'patch'], permission_classes=[IsAuthenticated])
     def update_profile(self, request):
         serializer = self.get_serializer(data=request.data)
         queryset = self.get_queryset
@@ -248,57 +220,6 @@ class ProfileViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
-
-#class VendorEmailSubmissionView(generics.CreateAPIView):
- #   serializer_class = VendorEmailSerializer
-    
-  #  def created(self, request, *args, **kwargs):
-   #     serializer = self.get_serializer(data = request.data)
-    #    serializer.is_valid(raise_exception=True)
-     #   email = serializer.validated_data['email']
-        
-      #  otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
-        
-        # Store OTP in cache
-       # cache.set(f"otp_{email}", otp, timeout=300)  # OTP valid for 5 minutes
-        
-        # Send OTP via email
-        #send_mail(
-         #   'Your OTP for registration',
-          #  f'Your OTP is: {otp}',
-           # 'from@fysi.com',
-            #[email],
-            #fail_silently=False,
-       # )
-        
-       # return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
-        
-
-#class VendorRegistrationView(generics.CreateAPIView):
-#    serializer_class = VendorRegistrationSerializer
-
- #   def create(self, request, *args, **kwargs):
-  #      if not request.session.get('country') or not request.session.get('email_verified'):
-   #         return Response({"error": "Please complete country selection and email verification first"}, status=status.HTTP_400_BAD_REQUEST)
-        
-    #    serializer = self.get_serializer(data=request.data)
-     #   serializer.is_valid(raise_exception=True)
-        
-        # Store the validated data in the session instead of creating a user
-      #  request.session['phone_number'] = serializer.validated_data['phone_number']
-       # request.session['password'] = serializer.validated_data['password']
-        #request.session['user_type'] = serializer.validated_data['user_type']
-        
-        #return Response({
-         #   "message": "Registration information stored successfully. Please complete vendor shop information.",
-        #}, status=status.HTTP_200_OK)
-
 
 
 #class FlexibleVendorShopView(generics.CreateAPIView):
