@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
+router.register(r'profile', ProfileViewSet, basename='user_profile')
 #router.register(r'login', LoginViewSet, basename='login')
 #router.register(r'change-password', ChangePasswordViewSet, basename='change-password')
 #router.register(r'vendor/country', VendorCountryViewSet, basename='vendor-country')
