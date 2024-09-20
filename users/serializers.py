@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import *
 
+class OtpEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
 class UserSerializer(serializers.ModelSerializer):
     retype_password = serializers.CharField(write_only=True)

@@ -68,6 +68,13 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
     @action(detail=False, methods=['post'], url_path='register')
+    def otp_email(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+    
+    
+    @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -83,6 +90,7 @@ class UserViewSet(viewsets.ModelViewSet):
         response_data, status_code = create_and_send_otp(user)
 
         return Response(response_data, status=status_code)
+    
     @action(detail=False, methods=['post'], url_path='reactivate')
     def reactivate(self, request):
         queryset = User.objects.all()
