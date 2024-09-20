@@ -35,7 +35,7 @@ class ActivationSerializer(serializers.Serializer):
 
 class ResetrequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    def validator(self, email):
+    def validate_email(self, email):
         if not User.objects.filter(email=email).exists():
             raise serializers.ValidationError("email not registered")
         return email
