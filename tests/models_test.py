@@ -3,7 +3,6 @@ from users.models import *
 from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient
 
-manager=CustomUserManager()
 @pytest.mark.django_db
 def test_blank_email():
     manager=CustomUserManager()
