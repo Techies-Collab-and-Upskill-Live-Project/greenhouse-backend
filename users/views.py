@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.hashers import make_password
-
+from products.models import *
 from django.shortcuts import render
 from django.core.mail import send_mail
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -48,48 +48,120 @@ def create_and_send_otp(user):
 #handle registration based on selected user_type
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-#    serializer_class = UserSerializer
+
     def get_serializer_class(self):
         if self.action == 'register':
-            return UserSerializer
+            return RegisterSerializer
+        elif self.action == 'send_otp':
+            return  RegisterSerializer
         elif self.action == 'login':
             return LoginSerializer
         elif self.action in ['resetrequest', 'reactivate']:
-            return ResetrequestSerializer
+            return ResetRequestSerializer
         elif self.action == 'resetpassword':
-            return ResetpasswordSerializer
+            return ResetPasswordSerializer
         elif self.action == 'change_password':
             return ChangePasswordSerializer
-        elif self.action == 'activate':
-            return ActivationSerializer
+        elif self.action == 'verify_otp':
+            return ActivateSerializer
+        elif self.action == 'complete_profile':
+            return CompleteProfileSerializer
+        elif self.action == 'set_password':
+            return SetPasswordSerializer
         else:
             return UserSerializer
 
-
-
-    @action(detail=False, methods=['post'], url_path='register')
-    def otp_email(self, request):
+    # 1. Send OTP to email
+    @action(detail=False, methods=['post'], url_path='send-otp')
+    def send_otp(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-    
-    
-    @action(detail=False, methods=['post'], url_path='register')
-    def register(self, request):
+
+        # Check if the email already exists
+        if User.objects.filter(email=email).exists():
+            return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
+
+        # Create a new user instance with inactive status and generate OTP
+        user = User(email=email, is_active=False)
+        user.save()
+        response_data, status_code = create_and_send_otp(user)
+
+        return Response(response_data, status=status_code)
+
+    # 2. Verify OTP
+    @action(detail=False, methods=['post'], url_path='verify-otp')
+    def verify_otp(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        otp = serializer.validated_data['otp']
+
+        # Verify OTP
+        if not User.objects.filter(email=email).exists():
+            return Response({'error': 'Invalid email'}, status=status.HTTP_400_BAD_REQUEST)
+
+        response = verify_otp(email, otp)
+        user = User.objects.get(email=email)
+        if otp == user.otp:
+            user.is_active = True
+            user.otp = ''
+            user.save()
+            return Response({'message': 'OTP verified. Proceed to password setup.'}, status=status.HTTP_200_OK)
+        return response
+
+    # 3. Set password
+    @action(detail=False, methods=['post'], url_path='set-password')
+    def set_password(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
-        user_type = serializer.validated_data.get('user_type')
-        if User.objects.filter(email=email).exists():
-            return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
-        if user_type == 'Admin':
-            user = User.objects.create_superuser(email=email, password= password, user_type=user_type)
-        else:
-             user = User.objects.create_user(email=email, password= password, user_type=user_type)
-        response_data, status_code = create_and_send_otp(user)
+        password1 = serializer.validated_data['password1']
 
-        return Response(response_data, status=status_code)
+        if password != password1:
+            return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.get(email=email)
+        user.set_password(password)
+        user.save()
+
+        return Response({"message": "Password set successfully"}, status=status.HTTP_200_OK)
+
+    # 4. Complete profile
+    @action(detail=False, methods=['post'], url_path='complete-profile')
+    def complete_profile(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        user = User.objects.get(email=email)
+        user.first_name = serializer.validated_data['first_name']
+        user.last_name = serializer.validated_data['last_name']
+        user.phone_number = serializer.validated_data['phone_number']
+        user.save()
+
+        return Response({"message": "Profile completed successfully"}, status=status.HTTP_200_OK)
+
+    
+    
+    
+    # @action(detail=False, methods=['post'], url_path='register')
+    # def register(self, request):
+    #     serializer = self.get_serializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     email = serializer.validated_data['email']
+    #     password = serializer.validated_data['password']
+    #     user_type = serializer.validated_data.get('user_type')
+    #     if User.objects.filter(email=email).exists():
+    #         return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
+    #     if user_type == 'Admin':
+    #         user = User.objects.create_superuser(email=email, password= password, user_type=user_type)
+    #     else:
+    #          user = User.objects.create_user(email=email, password= password, user_type=user_type)
+    #     response_data, status_code = create_and_send_otp(user)
+
+    #     return Response(response_data, status=status_code)
     
     @action(detail=False, methods=['post'], url_path='reactivate')
     def reactivate(self, request):
@@ -105,23 +177,23 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(response_data, status=status_code)
 
 
-    @action(detail=False, methods=['post'], url_path='activate')
-    def activate(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
-        activation_pin = serializer.validated_data['activation_pin']
-        try:
-            user = User.objects.get(email=email)
-            if user.otp == activation_pin:
-                user.is_active = True
-                user.otp = None
-                user.save()
-                return Response({'message': 'Account activated successfully!'}, status=status.HTTP_200_OK)
-            else:
-                return Response({'error': 'Invalid activation PIN.'}, status=status.HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+    # @action(detail=False, methods=['post'], url_path='activate')
+    # def activate(self, request):
+    #     serializer = self.get_serializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     email = serializer.validated_data['email']
+    #     activation_pin = serializer.validated_data['activation_pin']
+    #     try:
+    #         user = User.objects.get(email=email)
+    #         if user.otp == activation_pin:
+    #             user.is_active = True
+    #             user.otp = None
+    #             user.save()
+    #             return Response({'message': 'Account activated successfully!'}, status=status.HTTP_200_OK)
+    #         else:
+    #             return Response({'error': 'Invalid activation PIN.'}, status=status.HTTP_400_BAD_REQUEST)
+    #     except User.DoesNotExist:
+    #         return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 #
 #LOGIN/OUT ACTIONS
@@ -129,15 +201,16 @@ class UserViewSet(viewsets.ModelViewSet):
     def login(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = authenticate(request, email=serializer.validated_data['email'], password=serializer.validated_data['password'])
+        user = authenticate(
+            request, email=serializer.validated_data['email'], password=serializer.validated_data['password'])
         if user is None:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
             return Response({'error': 'User account is not active'}, status=status.HTTP_401_UNAUTHORIZED)
         refresh = RefreshToken.for_user(user)
         return Response({
-     'refresh': str(refresh),
-        'access': str(refresh.access_token),
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
         }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='logout', permission_classes=[IsAuthenticated])
@@ -201,96 +274,260 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
 
  
-#extend profile based on user_type
-class ProfileViewSet(viewsets.ModelViewSet):
-    def get_queryset(self):
-        user = self.request.user
-        if user.user_type == 'Vendor':
-            return Vendor.objects.filter(user=user)
-        elif user.user_type == 'Customer':
-            return Customer.objects.filter(user=user)
-        raise PermissionDenied("Invalid user type")
 
+class VendorViewSet(viewsets.ViewSet):
+    queryset = Product.objects.all()
+
+    # Set a default serializer to help with documentation generation
+    serializer_class = VendorCountrySerializer
 
     def get_serializer_class(self):
-        user = self.request.user
-        if user.user_type == 'Vendor':
-            return VendorSerializer
-        elif user.user_type == 'Customer':
-            return CustomerSerializer
-        raise PermissionDenied("Invalid user type")
+        """
+        Return different serializers based on the action.
+        """
+        if self.action == 'select_country':
+            return VendorCountrySerializer
+        elif self.action == 'submit_email':
+            return VendorEmailSerializer
+        elif self.action == 'verify_otp':
+            return ActivationSerializer
+        elif self.action == 'register_vendor':
+            return VendorRegistrationSerializer
+        elif self.action == 'register_vendor_shop':
+            return FlexibleVendorShopSerializer
+        return super().get_serializer_class()
 
-    @action(detail=False, methods=['put', 'patch'], permission_classes=[IsAuthenticated])
-    def update_profile(self, request):
+    @action(detail=False, methods=['post'], url_path='country', serializer_class=VendorCountrySerializer)
+    def select_country(self, request, *args, **kwargs):
+        """
+        Step 1: Vendor selects their country.
+        """
         serializer = self.get_serializer(data=request.data)
-        queryset = self.get_queryset
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        request.session['country'] = serializer.validated_data['country']
+        return Response({'message': 'Country selected successfully'}, status=status.HTTP_200_OK)
 
-
-#class FlexibleVendorShopView(generics.CreateAPIView):
- #   serializer_class = FlexibleVendorShopSerializer
-
-  #  @transaction.atomic
-   # @action(detail=False, methods=['post'], url_path='FlexibleVendor')
-    #def FlexibleVendorShop(self, request):
-     #   required_keys = ['country', 'email_verified', 'phone_number', 'password', 'user_type']
-      #  if not all(key in request.session for key in required_keys):
-       #     return Response({"error": "Please complete all previous registration steps"}, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=False, methods=['post'], url_path='email', serializer_class=VendorEmailSerializer)
+    def submit_email(self, request, *args, **kwargs):
+        """
+        Step 2: Vendor submits email to receive an OTP.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        cache.set(f"otp_{email}", otp, timeout=300)
         
-        #serializer = self.get_serializer(data=request.data)
-        #serializer.is_valid(raise_exception=True)
-        
-        #try:
-            # Check if user already exists
-         #   user = User.objects.filter(email=request.session['email_verified']).first()
-            
-          #  if user:
-                # If user exists, update fields
-           #     user.is_active = True
-            #    user.phone_number = request.session['phone_number']
-             #   user.user_type = request.session['user_type']
-              #  user.country = request.session['country']
-               # user.set_password(request.session['password'])
-                #user.save()
-           # else:
-                # Create new user
-            #    user = User.objects.create_user(
-             #       email=request.session['email_verified'],
-              #      password=request.session['password'],
-               #     is_active=True,
-                #    phone_number=request.session['phone_number'],
-                 #   user_type=request.session['user_type'],
-                  #  country=request.session['country']
-                #)
+        send_mail(
+            'Your OTP for registration',
+            f'Your OTP is: {otp}',
+            'from@fysi.com',
+            [email],
+            fail_silently=False,
+        )
+        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
 
-            # Get or create vendor
-           # vendor, created = Vendor.objects.get_or_create(
-            #    user=user,
-             #   defaults=serializer.validated_data
-            #)
-            
-            #if not created:
-                # If vendor exists, update fields
-             #   for key, value in serializer.validated_data.items():
-               #     setattr(vendor, key, value)
-              #  vendor.save()
-
-            #return Response({
-             #   "message": "Vendor registered successfully.",
-                # "user": UserSerializer(user).data,
-              #  "vendor": serializer.data,
-           # }, status=status.HTTP_201_CREATED)
+    @action(detail=False, methods=['post'], url_path='otp-verify', serializer_class=ActivationSerializer)
+    def verify_otp(self, request, *args, **kwargs):
+        """
+        Step 3: Vendor verifies the OTP sent to the email.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        otp = serializer.validated_data['activation_pin']
         
-        #except IntegrityError as e:
-         #   transaction.set_rollback(True)
-          #  return Response({"error": f"Database integrity error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-        #except Exception as e:
-         #   transaction.set_rollback(True)
-          #  return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        #finally:
-            # Clear the session data
-         #   for key in required_keys:
-          #      request.session.pop(key, None)
+        stored_otp = cache.get(f"otp_{email}")
+        if stored_otp and stored_otp == otp:
+            cache.delete(f"otp_{email}")
+            request.session['email_verified'] = email
+            return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], url_path='register', serializer_class=VendorRegistrationSerializer)
+    def register_vendor(self, request, *args, **kwargs):
+        """
+        Step 4: Vendor registration (phone number, password, user type).
+        """
+        if not request.session.get('country') or not request.session.get('email_verified'):
+            return Response({"error": "Please complete country selection and email verification first"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        request.session['phone_number'] = serializer.validated_data['phone_number']
+        request.session['password'] = serializer.validated_data['password']
+        request.session['user_type'] = serializer.validated_data['user_type']
+        
+        return Response({
+            "message": "Registration information stored successfully. Please complete vendor shop information.",
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='shop', serializer_class=FlexibleVendorShopSerializer)
+    def register_vendor_shop(self, request, *args, **kwargs):
+        """
+        Step 5: Vendor completes shop registration.
+        """
+        required_keys = ['country', 'email_verified', 'phone_number', 'password', 'user_type']
+        if not all(key in request.session for key in required_keys):
+            return Response({"error": "Please complete all previous registration steps"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = User.objects.create_user(
+            email=request.session['email_verified'],
+            phone_number=request.session['phone_number'],
+            password=request.session['password'],
+            user_type=request.session['user_type'],
+            country=request.session['country']
+        )
+        user.is_active = True
+        user.save()
+        
+        vendor = Vendor.objects.create(user=user, **serializer.validated_data)
+        
+        # Clear session data after successful registration
+        for key in required_keys:
+            if key in request.session:
+                del request.session[key]
+        
+        return Response({
+            "message": "Vendor registered successfully.",
+            "vendor": FlexibleVendorShopSerializer(vendor).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+ 
+#extend profile based on user_type
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+
+class VendorViewSet(viewsets.ViewSet):
+
+    queryset = Product.objects.all()
+
+    @swagger_auto_schema(
+        method='post',
+        request_body=VendorCountrySerializer,
+        responses={200: 'Country selected successfully'}
+    )
+    @action(detail=False, methods=['post'], url_path='country')
+    def select_country(self, request, *args, **kwargs):
+        """
+        Step 1: Vendor selects their country.
+        """
+        serializer = VendorCountrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        request.session['country'] = serializer.validated_data['country']
+        return Response({'message': 'Country selected successfully'}, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method='post',
+        request_body=VendorEmailSerializer,
+        responses={200: "OTP sent successfully, It expires in 5 minutes"}
+    )
+    @action(detail=False, methods=['post'], url_path='email')
+    def submit_email(self, request, *args, **kwargs):
+        """
+        Step 2: Vendor submits email to receive an OTP.
+        """
+        serializer = VendorEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        cache.set(f"otp_{email}", otp, timeout=300)
+        send_mail(
+            'Your OTP for registration',
+            f'Your OTP is: {otp}',
+            'from@fysi.com',
+            [email],
+            fail_silently=False,
+        )
+        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method='post',
+        request_body=ActivationSerializer,
+        responses={200: "OTP verified successfully", 400: "Invalid OTP"}
+    )
+    @action(detail=False, methods=['post'], url_path='otp-verify')
+    def verify_otp(self, request, *args, **kwargs):
+        """
+        Step 3: Vendor verifies the OTP sent to the email.
+        """
+        serializer = ActivationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        otp = serializer.validated_data['activation_pin']
+        stored_otp = cache.get(f"otp_{email}")
+        if stored_otp and stored_otp == otp:
+            cache.delete(f"otp_{email}")
+            request.session['email_verified'] = email
+            return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(
+        method='post',
+        request_body=VendorRegistrationSerializer,
+        responses={200: "Registration information stored successfully. Please complete vendor shop information."}
+    )
+    @action(detail=False, methods=['post'], url_path='register')
+    def register_vendor(self, request, *args, **kwargs):
+        """
+        Step 4: Vendor registration (phone number, password, user type).
+        """
+        if not request.session.get('country') or not request.session.get('email_verified'):
+            return Response({"error": "Please complete country selection and email verification first"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = VendorRegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        request.session['phone_number'] = serializer.validated_data['phone_number']
+        request.session['password'] = serializer.validated_data['password']
+        request.session['user_type'] = serializer.validated_data['user_type']
+        return Response({
+            "message": "Registration information stored successfully. Please complete vendor shop information.",
+        }, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method='post',
+        request_body=FlexibleVendorShopSerializer,
+        responses={201: "Vendor registered successfully."}
+    )
+    @action(detail=False, methods=['post'], url_path='shop')
+    def register_vendor_shop(self, request, *args, **kwargs):
+        """
+        Step 5: Vendor completes shop registration.
+        """
+        required_keys = ['country', 'email_verified', 'phone_number', 'password', 'user_type']
+        if not all(key in request.session for key in required_keys):
+            return Response({"error": "Please complete all previous registration steps"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = FlexibleVendorShopSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = User.objects.create_user(
+            email=request.session['email_verified'],
+            phone_number=request.session['phone_number'],
+            password=request.session['password'],
+            user_type=request.session['user_type'],
+            country=request.session['country']
+        )
+        user.is_active = True
+        user.save()
+        
+        vendor = Vendor.objects.create(user=user, **serializer.validated_data)
+        
+        for key in required_keys:
+            del request.session[key]
+        
+        return Response({
+            "message": "Vendor registered successfully.",
+            "vendor": FlexibleVendorShopSerializer(vendor).data,
+        }, status=status.HTTP_201_CREATED)
+
+

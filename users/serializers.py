@@ -1,8 +1,26 @@
 from rest_framework import serializers
 from .models import *
 
-class OtpEmailSerializer(serializers.Serializer):
+class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
+# Serializer for OTP verification
+class ActivateSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=4)
+
+# Serializer for setting the password
+class SetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    password1 = serializers.CharField(write_only=True)
+
+# Serializer for completing the profile
+class CompleteProfileSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=255)
+    last_name = serializers.CharField(max_length=255)
+    phone_number = serializers.CharField(max_length=20)
 
 class UserSerializer(serializers.ModelSerializer):
     retype_password = serializers.CharField(write_only=True)
@@ -35,14 +53,14 @@ class ActivationSerializer(serializers.Serializer):
     email = serializers.EmailField()
     activation_pin = serializers.CharField(max_length=6)
 
-class ResetrequestSerializer(serializers.Serializer):
+class ResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
     def validate_email(self, email):
         if not User.objects.filter(email=email).exists():
             raise serializers.ValidationError("email not registered")
         return email
 
-class ResetpasswordSerializer(serializers.Serializer):
+class ResetPasswordSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length = 6)
     new_password = serializers.CharField(max_length = 255, write_only = True)
     password_again = serializers.CharField(max_length = 255, write_only = True)
@@ -65,12 +83,24 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     
+    
+# Vendor Registration Serializer
+    
 class VendorCountrySerializer(serializers.Serializer):
     country = serializers.CharField(max_length=100)
-    
+
 class VendorEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    
+
+class ActivationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    activation_pin = serializers.CharField(max_length=4)
+
+class VendorRegistrationSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=15)
+    password = serializers.CharField(write_only=True)
+    user_type = serializers.ChoiceField(choices=User.USER_TYPE_CHOICES, default='Vendor')
+
 class FlexibleVendorShopSerializer(serializers.ModelSerializer):
     account_type = serializers.ChoiceField(choices=Vendor.ACCOUNT_TYPE_CHOICES)
     cac_id = serializers.CharField(required=False)

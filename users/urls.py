@@ -4,13 +4,11 @@ from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
-router.register(r'profile', ProfileViewSet, basename='user_profile')
-#router.register(r'login', LoginViewSet, basename='login')
-#router.register(r'change-password', ChangePasswordViewSet, basename='change-password')
-#router.register(r'vendor/country', VendorCountryViewSet, basename='vendor-country')
-#router.register(r'vendor/shop', FlexibleVendorShopViewSet, basename='FlexibleVendor')
-#router.register(r'extendreg', ExtendRegViewSet, basename='extend-reg')
+# router.register(r'profile', ProfileViewSet, basename='user_profile')
+router.register(r'vendor', VendorViewSet, basename='vendor')
+
 urlpatterns = [
     path('', include(router.urls)),
 ]
+
 
