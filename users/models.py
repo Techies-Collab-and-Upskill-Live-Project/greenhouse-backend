@@ -31,14 +31,13 @@ class User(AbstractUser, PermissionsMixin):
     
     USER_TYPE_CHOICES = [
         ('Customer', 'Customer'),
-#        ('Admin', 'Admin'),
         ('Vendor', 'Vendor')
     ]
-    password = models.CharField(max_length = 8)
-    retype_password = models.CharField(max_length = 8, default="re_enter password")
+    password = models.CharField(max_length=128)  # Increase length to accommodate hashed passwords
+    retype_password = models.CharField(max_length=128, default="re_enter password")
     user_type = models.CharField(max_length=50, choices=USER_TYPE_CHOICES, default='Customer')
     is_active = models.BooleanField(default=False)
-    otp = models.CharField(max_length = 4, blank=True, null=True)
+    otp = models.CharField(max_length=4, blank=True, null=True)
     created_on = models.DateField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
