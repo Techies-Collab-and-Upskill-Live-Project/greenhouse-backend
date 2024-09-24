@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["https://fysi-api.onrender.com", "fysi-api.onrender.com", "https://greenhouse-frontend-nine.vercel.app/", "greenhouse-frontend-nine.vercel.app/"]
+ALLOWED_HOSTS = ["https://fysi-api.onrender.com", "fysi-api.onrender.com", "https://greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/", "greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/"]
 
 
 # Application definition
