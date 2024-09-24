@@ -1,10 +1,4 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager
-import uuid, random
-from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
-import uuid
-import uuid, random
-from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
 import uuid, random
 from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
 from django.db.models.signals import post_save
@@ -56,7 +50,7 @@ class User(AbstractUser, PermissionsMixin):
 
     def generate_otp(self):
         import random
-        otp = ''.join([str(random.randint(0,9)) for _ in range(6)])
+        otp = ''.join([str(random.randint(0,9)) for _ in range(4)])
         self.otp = otp
         self.save()
         return otp 

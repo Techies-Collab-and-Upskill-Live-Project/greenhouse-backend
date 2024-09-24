@@ -91,12 +91,12 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = os.getenv('EMAIL_PORT')
 
-#REST_FRAMEWORK = {
- #   'DEFAULT_AUTHENTICATION_CLASSES': (
-  #      'rest_framework_simplejwt.authentication.JWTAuthentication',
-   #     'rest_framework.authentication.TokenAuthentication',
-    #)
-#}
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
 from datetime import timedelta
 
 SIMPLE_JWT = {
