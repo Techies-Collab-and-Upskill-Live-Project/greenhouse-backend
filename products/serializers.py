@@ -6,6 +6,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name']
 
+
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
@@ -15,6 +16,7 @@ class ProductVariationSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariation
         fields = ['id', 'seller_sku', 'barcode', 'quantity']
+        read_only = ['seller_sku']
 
 class ProductSpecificationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,9 +41,10 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'category', 'sku', 'brand', 'color', 'description', 'weight', 'vendor',
+            'id', 'name', 'category', 'sku', 'brand', 'status', 'color', 'description', 'weight', 'vendor',
             'images', 'variations', 'specification', 'pricing'
         ]
+        read_only_fields = ['vendor']
 
     def create(self, validated_data):
         images_data = validated_data.pop('images')

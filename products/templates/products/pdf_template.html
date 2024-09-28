@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+    <title>Vendor Products Export</title>
+</head>
+<body>
+    <h1>Vendor Products Export</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>Price</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.name }}</td>
+                <td>{{ product.sku }}</td>
+                <td>
+                    {% if product.pricing %}
+                        {{ product.pricing.sale_price|default:product.pricing.base_price }}
+                    {% else %}
+                        No Price
+                    {% endif %}
+                </td>
+                <td>{{ product.category }}</td>
+                <td>
+                    {% if product.variations.first %}
+                        {{ product.variations.first.quantity }}
+                    {% else %}
+                        No Quantity
+                    {% endif %}
+                </td>
+                <td>{{ product.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

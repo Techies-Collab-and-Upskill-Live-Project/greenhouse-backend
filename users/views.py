@@ -3,19 +3,15 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import User 
 from .serializers import *
-from rest_framework.permissions import IsAuthenticated 
-from rest_framework.authentication import TokenAuthentication, SessionAuthentication
-from django.core.exceptions import PermissionDenied
-from django.contrib.auth.hashers import make_password
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from products.models import *
-from django.shortcuts import render
 from django.core.mail import send_mail
 from rest_framework_simplejwt.tokens import RefreshToken
 import random
 from django.core.cache import cache
 from django.contrib.auth import authenticate
-from django.db import transaction, IntegrityError
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import MethodNotAllowed
+
 
 #verify mail otp
 def verify_otp(email, otp):
@@ -53,7 +49,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == 'register':
             return RegisterSerializer
         elif self.action == 'send_otp':
-            return  RegisterSerializer
+            return RegisterSerializer
         elif self.action == 'login':
             return LoginSerializer
         elif self.action in ['resetrequest', 'reactivate']:
@@ -70,6 +66,19 @@ class UserViewSet(viewsets.ModelViewSet):
             return SetPasswordSerializer
         else:
             return UserSerializer
+
+    def get_permissions(self):
+        # Restrict 'list' (GET) to authenticated admin users
+        if self.action == 'list':  # This is the GET method for all users
+            permission_classes = [IsAuthenticated, IsAdminUser]
+        else:
+            # Allow other actions without these strict permissions
+            permission_classes = []
+        return [permission() for permission in permission_classes]
+
+    def create(self, request, *args, **kwargs):
+        # Disable the create (POST) method for this viewset
+        raise MethodNotAllowed("POST")
 
     # 1. Send OTP to email
     @action(detail=False, methods=['post'], url_path='send-otp')
@@ -144,25 +153,6 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({"message": "Profile completed successfully"}, status=status.HTTP_200_OK)
 
     
-    
-    
-    # @action(detail=False, methods=['post'], url_path='register')
-    # def register(self, request):
-    #     serializer = self.get_serializer(data=request.data)
-    #     serializer.is_valid(raise_exception=True)
-    #     email = serializer.validated_data['email']
-    #     password = serializer.validated_data['password']
-    #     user_type = serializer.validated_data.get('user_type')
-    #     if User.objects.filter(email=email).exists():
-    #         return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
-    #     if user_type == 'Admin':
-    #         user = User.objects.create_superuser(email=email, password= password, user_type=user_type)
-    #     else:
-    #          user = User.objects.create_user(email=email, password= password, user_type=user_type)
-    #     response_data, status_code = create_and_send_otp(user)
-
-    #     return Response(response_data, status=status_code)
-    
     @action(detail=False, methods=['post'], url_path='reactivate')
     def reactivate(self, request):
         queryset = User.objects.all()
@@ -176,24 +166,6 @@ class UserViewSet(viewsets.ModelViewSet):
         response_data, status_code = create_and_send_otp(user)
         return Response(response_data, status=status_code)
 
-
-    # @action(detail=False, methods=['post'], url_path='activate')
-    # def activate(self, request):
-    #     serializer = self.get_serializer(data=request.data)
-    #     serializer.is_valid(raise_exception=True)
-    #     email = serializer.validated_data['email']
-    #     activation_pin = serializer.validated_data['activation_pin']
-    #     try:
-    #         user = User.objects.get(email=email)
-    #         if user.otp == activation_pin:
-    #             user.is_active = True
-    #             user.otp = None
-    #             user.save()
-    #             return Response({'message': 'Account activated successfully!'}, status=status.HTTP_200_OK)
-    #         else:
-    #             return Response({'error': 'Invalid activation PIN.'}, status=status.HTTP_400_BAD_REQUEST)
-    #     except User.DoesNotExist:
-    #         return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 #
 #LOGIN/OUT ACTIONS
@@ -223,7 +195,6 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': 'Failed to logout'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 #PASSWORDS ACTIONS

@@ -20,7 +20,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["https://fysi-api.onrender.com", "fysi-api.onrender.com", "https://greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/", "greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/"]
+ALLOWED_HOSTS = ["127.0.0.1","https://fysi-api.onrender.com", "fysi-api.onrender.com", "https://greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/", "greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/"]
 
 
 # Application definition
@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'orders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'drf_yasg',
+    'drf_yasg',    
+    'django_filters',
 ]
 
 
@@ -62,7 +63,7 @@ ROOT_URLCONF = 'fysi_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -74,6 +75,13 @@ TEMPLATES = [
         },
     },
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,  # Adjust the page size as needed
+}
+
+
 
 WSGI_APPLICATION = 'fysi_backend.wsgi.application'
 
