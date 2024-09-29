@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.crypto import get_random_string
 import uuid, random
+from django.utils.functional import lazy
 from users.models import Vendor
 
 class Category(models.Model):
@@ -12,9 +13,13 @@ class Category(models.Model):
 
 
 # Function to generate category choices dynamically
+
 def get_category_choices():
-    from .models import Category  # Importing here to avoid circular imports
-    return [(category.name,  category.name) for category in Category.objects.all()]
+    from .models import Category
+    return [(category.name, category.name) for category in Category.objects.all()]
+
+category_choices = lazy(get_category_choices, list)
+
 
 STATUS_CHOICE = (
     ('in stock', 'In Stock'),
@@ -26,7 +31,7 @@ class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sku = models.CharField(max_length=6, unique=True, editable=False)
     name = models.CharField(max_length=255)
-    category = models.CharField(max_length=100, choices=get_category_choices())
+    category = models.CharField(max_length=100, choices=category_choices)
     brand = models.CharField(max_length=100)
     color = models.CharField(max_length=100)
     description = models.TextField()

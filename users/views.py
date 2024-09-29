@@ -11,6 +11,7 @@ import random
 from django.core.cache import cache
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import MethodNotAllowed
+from drf_yasg.utils import swagger_auto_schema
 
 
 #verify mail otp
@@ -372,11 +373,6 @@ class VendorViewSet(viewsets.ViewSet):
 
  
 #extend profile based on user_type
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework import viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
 
 class VendorViewSet(viewsets.ViewSet):
 
