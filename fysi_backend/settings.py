@@ -20,8 +20,13 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1","https://fysi-api.onrender.com", "fysi-api.onrender.com", "https://greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/", "greenhouse-frontend-git-development-mikelsmiths-projects.vercel.app/"]
+ALLOWED_HOSTS = ["127.0.0.1", "http://localhost:3000", 'localhost:3000', "https://fysi-api.onrender.com", "fysi-api.onrender.com", ]
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    'https://fysi-api.onrender.com',
+    
+]
 
 # Application definition
 
@@ -40,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_yasg',    
     'django_filters',
+    'corsheaders'
 ]
 
 
@@ -53,6 +59,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    
 ]
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
