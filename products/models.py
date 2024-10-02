@@ -18,7 +18,7 @@ def get_category_choices():
     from .models import Category
     return [(category.name, category.name) for category in Category.objects.all()]
 
-category_choices = lazy(get_category_choices, list)
+#category_choices = lazy(get_category_choices, list)
 
 
 STATUS_CHOICE = (
@@ -31,14 +31,14 @@ class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sku = models.CharField(max_length=6, unique=True, editable=False)
     name = models.CharField(max_length=255)
-    category = models.CharField(max_length=100, choices=category_choices)
+    category = models.CharField(max_length=100) #choices=category_choices)
     brand = models.CharField(max_length=100)
     color = models.CharField(max_length=100)
     description = models.TextField()
     status = models.CharField( max_length=15, choices=STATUS_CHOICE, default='in stock')
     weight = models.DecimalField(max_digits=10, decimal_places=2)
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='products')
-    
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     def __str__(self):
         return self.name
 

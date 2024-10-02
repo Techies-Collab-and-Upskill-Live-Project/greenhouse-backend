@@ -151,7 +151,7 @@ class UserViewSet(viewsets.ModelViewSet):
         user.phone_number = serializer.validated_data['phone_number']
         user.save()
 
-        return Response({"message": "Profile completed successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Profile completed successfully{id}"}, status=status.HTTP_200_OK)
 
     
     @action(detail=False, methods=['post'], url_path='reactivate')
