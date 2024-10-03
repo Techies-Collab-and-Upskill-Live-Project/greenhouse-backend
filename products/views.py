@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.template.loader import get_template
-#from xhtml2pdf import pisa
+from xhtml2pdf import pisa
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
