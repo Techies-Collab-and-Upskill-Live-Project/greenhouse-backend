@@ -73,37 +73,37 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return response
     
-    #@action(detail=False, methods=['get'], url_path='export/pdf', permission_classes=[IsAuthenticated, IsVendor])
-    #def export_products_pdf(self, request):
-        # Get the authenticated vendor
-        #vendor = Vendor.objects.get(user=request.user)
+    @action(detail=False, methods=['get'], url_path='export/pdf', permission_classes=[IsAuthenticated, IsVendor])
+    def export_products_pdf(self, request):
+        Get the authenticated vendor
+        vendor = Vendor.objects.get(user=request.user)
 
-        # Get all products created by this vendor
-       # products = Product.objects.filter(vendor=vendor)
+        Get all products created by this vendor
+       products = Product.objects.filter(vendor=vendor)
 
-        # Define the template to render
-        #template = get_template('products/pdf_template.html')
+        Define the template to render
+        template = get_template('products/pdf_template.html')
 
-        # Prepare the data context for the template
-        #context = {
-        #    'products': products
-       # }
+        Prepare the data context for the template
+        context = {
+           'products': products
+       }
 
-        # Render the HTML content
-        #html = template.render(context)
+        Render the HTML content
+        html = template.render(context)
 
-        # Create a response object to hold the PDF
-        #response = HttpResponse(content_type='application/pdf')
-        #response['Content-Disposition'] = 'attachment; filename="vendor_products_export.pdf"'
+        Create a response object to hold the PDF
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="vendor_products_export.pdf"'
 
-        # Convert HTML content to PDF
-        #pisa_status = pisa.CreatePDF(html, dest=response)
+        Convert HTML content to PDF
+        pisa_status = pisa.CreatePDF(html, dest=response)
 
-        # If there's an error during PDF creation
-  #      if pisa_status.err:
- #           return HttpResponse('We had some errors generating the PDF', status=500)
+        If there's an error during PDF creation
+       if pisa_status.err:
+           return HttpResponse('We had some errors generating the PDF', status=500)
         
-#        return response
+       return response
 
 
 
