@@ -20,11 +20,12 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "http://localhost:3000", 'localhost:3000', "https://fysi-api.onrender.com", "fysi-api.onrender.com", ]
+ALLOWED_HOSTS = ["127.0.0.1", "http://localhost:3000", 'https://greenhouse-front-end.vercel.app', 'greenhouse-front-end.vercel.app', 'localhost:3000', "https://fysi-api.onrender.com", "fysi-api.onrender.com", ]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     'https://fysi-api.onrender.com',
+    'https://greenhouse-front-end.vercel.app',
     
 ]
 
