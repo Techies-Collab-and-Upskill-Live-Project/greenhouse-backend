@@ -25,7 +25,7 @@ ALLOWED_HOSTS = ["127.0.0.1", "http://localhost:3000", 'https://greenhouse-front
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     'https://fysi-api.onrender.com',
-    'https://greenhouse-front-end.vercel.app',
+    'https://greenhouse-front-end.vercel.app'
     
 ]
 
