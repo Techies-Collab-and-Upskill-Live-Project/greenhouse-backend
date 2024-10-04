@@ -181,10 +181,33 @@ class UserViewSet(viewsets.ModelViewSet):
         if not user.is_active:
             return Response({'error': 'User account is not active'}, status=status.HTTP_401_UNAUTHORIZED)
         refresh = RefreshToken.for_user(user)
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-        }, status=status.HTTP_200_OK)
+        user_data = UserSerializer(user).data
+        profile_data = {
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'phone_number': user.phone_number,
+        }
+        
+        # Construct the response
+        response_data = {
+            'status': 'success',
+            'message': 'Login successful',
+            'token': {
+                'access': str(refresh.access_token),
+            },
+            'user': {
+                'id': user_data['id'],
+                'email': user_data['email'],
+                'user_type': user_data['user_type'],
+                'profile': {
+                    'first_name': profile_data['first_name'],
+                    'last_name': profile_data['last_name'],
+                    'phone_number': profile_data['phone_number']
+                }
+            }
+        }
+    
+        return Response(response_data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='logout', permission_classes=[IsAuthenticated])
     def logout(self, request):
