@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import *
-from orders.models import *
 
 class ProductCategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,13 +31,14 @@ class PricingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pricing
         fields = ['id', 'base_price', 'sale_price', 'sales_start_date', 'sales_end_date']
+        read_only_fields = ['sale_price']
+        
 
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True)
     variations = ProductVariationSerializer(many=True)
     specification = ProductSpecificationSerializer()
     pricing = PricingSerializer()
-    category = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
 
     class Meta:
         model = Product
@@ -65,20 +65,3 @@ class ProductSerializer(serializers.ModelSerializer):
         Pricing.objects.create(product=product, **pricing_data)
         
         return product
-
-#customer's actions
-class CartItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CartItem
-        fields = ['id','product', 'quantity']
-class CartSerializer(serializers.ModelSerializer):
-    cart_item=CartItemSerializer(many=True, read_only=True)
-    class Meta:
-        model = Cart
-        fields = ['id','customer', 'cart_item']
-
-class OrderSerializer(serializers.ModelSerializer):
-    cart=CartSerializer(read_only=True)
-    class Meta:
-        model= Order
-        fields = ['id', 'status', 'cart','created_at', 'updated_at']
