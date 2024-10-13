@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Product
 from .serializers import *
-from .permissions import *
+from .permissions import IsVendor
 from rest_framework.decorators import action
 from rest_framework.response import Response
 import csv
@@ -15,7 +15,6 @@ from xhtml2pdf import pisa
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-        
     permission_classes = [IsAuthenticated, IsVendor]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
@@ -34,7 +33,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         serializer = ProductSerializer(queryset, many=True)
         return Response(serializer.data)
 
-
+    
 
     # Export action
     @action(detail=False, methods=['get'], url_path='export/csv', permission_classes=[IsAuthenticated, IsVendor])
@@ -60,7 +59,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             # Fetch related pricing and variations
             price = product.pricing.sale_price if product.pricing and product.pricing.sale_price else product.pricing.base_price if product.pricing else 'No Price'
             quantity = product.variations.first().quantity if product.variations.exists() else 'No Quantity'
-            category = product.category if product.category else 'No Category'
+            category = product.category.name if product.category else 'No Category'
 
             writer.writerow([
                 product.name,  # Product name
@@ -75,33 +74,33 @@ class ProductViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='export/pdf', permission_classes=[IsAuthenticated, IsVendor])
     def export_products_pdf(self, request):
-        #Get the authenticated vendor
+        # Get the authenticated vendor
         vendor = Vendor.objects.get(user=request.user)
 
-        #Get all products created by this vendor
+        # Get all products created by this vendor
         products = Product.objects.filter(vendor=vendor)
 
-        #Define the template to render
+        # Define the template to render
         template = get_template('products/pdf_template.html')
 
-        #Prepare the data context for the template
+        # Prepare the data context for the template
         context = {
-           'products': products
-       }
+            'products': products
+        }
 
-        #Render the HTML content
+        # Render the HTML content
         html = template.render(context)
 
-        #Create a response object to hold the PDF
+        # Create a response object to hold the PDF
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="vendor_products_export.pdf"'
 
-       # Convert HTML content to PDF
+        # Convert HTML content to PDF
         pisa_status = pisa.CreatePDF(html, dest=response)
 
-        #If there's an error during PDF creation
+        # If there's an error during PDF creation
         if pisa_status.err:
-           return HttpResponse('We had some errors generating the PDF', status=500)
+            return HttpResponse('We had some errors generating the PDF', status=500)
         
         return response
 
@@ -132,3 +131,4 @@ class ProductViewSet(viewsets.ModelViewSet):
             "message": "Categories retrieved successfully",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+        
