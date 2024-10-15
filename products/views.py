@@ -24,13 +24,26 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         vendor = Vendor.objects.get(user=self.request.user)
-        serializer.save(vendor=vendor)
+        product = serializer.save(vendor=vendor)
         
+        response_data = serializer.data
+        response_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/api/cart/add-item/?product_id={product.id}')
+        response_data['create_order_url'] = self.request.build_absolute_uri(f'/api/order/create-order/?product_id={product.id}')
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
         
     @action(detail=False, methods=['get'], url_path='listing', permission_classes=[AllowAny])
     def product_listing(self, request):
         queryset = self.filter_queryset(self.get_queryset())  # Use the filtering, search, and ordering
         serializer = ProductSerializer(queryset, many=True)
+
+        # Modify the serialized data to include the additional URLs
+        for product_data in serializer.data:
+            product_id = product_data['id']
+            product_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/cart/add-item/?product_id={product_id}')
+            product_data['create_order_url'] = self.request.build_absolute_uri(f'/order/create-order/?product_id={product_id}')
+
         return Response(serializer.data)
 
     
