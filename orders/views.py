@@ -19,7 +19,7 @@ from rest_framework.exceptions import NotFound
 
 class CartViewSet(viewsets.ModelViewSet):
     serializer_class = CartSerializer
-    permission_classes = [AllowAny]
+    permission_classes = ['AllowAny',]
 
     def get_queryset(self):
         return Cart.objects.filter(customer=self.request.user)
