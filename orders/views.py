@@ -14,12 +14,13 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.permissions import AllowAny
 
 from rest_framework.exceptions import NotFound
 
 class CartViewSet(viewsets.ModelViewSet):
     serializer_class = CartSerializer
-    permission_classes = ['AllowAny',]
+    permission_classes = [AllowAny,]
 
     def get_queryset(self):
         return Cart.objects.filter(customer=self.request.user)
