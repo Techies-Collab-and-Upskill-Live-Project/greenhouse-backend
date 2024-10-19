@@ -32,13 +32,21 @@ class ProductViewSet(viewsets.ModelViewSet):
             ProductImage.objects.create(product=product, image=image_data)
         
         response_data = serializer.data
-        # response_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/api/cart/add-item/?product_id={product.id}')
-        # response_data['create_order_url'] = self.request.build_absolute_uri(f'/api/order/create-order/?product_id={product.id}')
-        
-        # Include image URLs in the response
         response_data['images'] = ProductImageSerializer(product.images.all(), many=True).data
-        
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+    def perform_update(self, serializer):
+        product = serializer.save()
+
+        # Handle updating product images if sent in PATCH request
+        if 'images' in self.request.FILES:
+            images_data = self.request.FILES.getlist('images')
+            for image_data in images_data:
+                ProductImage.objects.create(product=product, image=image_data)
+
+        response_data = serializer.data
+        response_data['images'] = ProductImageSerializer(product.images.all(), many=True).data
+        return Response(response_data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='listing', permission_classes=[AllowAny])
     def product_listing(self, request):
