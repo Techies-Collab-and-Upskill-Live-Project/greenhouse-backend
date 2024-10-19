@@ -1,158 +1,84 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
-from .models import Cart, CartItem, Order, OrderItem
-from .serializers import CartSerializer, AddItemSerializer, RemoveItemSerializer, UpdateItemQuantitySerializer, OrderSerializer
-from products.permissions import IsCustomer
-from products.models import Product, ProductVariation
-from .utils import create_paystack_payment_link  
-import json
-from django.http import JsonResponse
+from .models import *
+from .serializers import *
+import requests
+from django.conf import settings
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
-from rest_framework.permissions import AllowAny
+from django.views.decorators.http import require_POST
+from django.conf import settings
+import json
+import hmac
+import hashlib
+from django.http import HttpResponse, JsonResponse
 
-from rest_framework.exceptions import NotFound
 
 class CartViewSet(viewsets.ModelViewSet):
+    queryset = Cart.objects.all()
     serializer_class = CartSerializer
-    permission_classes = [AllowAny,]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Cart.objects.filter(customer=self.request.user)
 
-    def get_object(self):
-        queryset = self.get_queryset()
-        obj = queryset.first()
-        if not obj:
-            raise NotFound("No cart found for this customer.")
-        return obj
+    def perform_create(self, serializer):
+        serializer.save(customer=self.request.user)
 
-    def create(self, request):
-        # This method is now essentially a "get or create"
+    @action(detail=True, methods=['post'], serializer_class=CartItemSerializer)
+    def add_item(self, request, pk=None):
         cart = self.get_object()
-        serializer = self.get_serializer(cart)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'product': openapi.Schema(type=openapi.TYPE_INTEGER),
-                'quantity': openapi.Schema(type=openapi.TYPE_INTEGER),
-                'variation': openapi.Schema(type=openapi.TYPE_INTEGER),
-            },
-            required=['product', 'quantity']
-        )
-    )
-    
-    @action(detail=False, methods=['post'])
-    def add_item(self, request):
-        cart = self.get_object()
-        serializer = AddItemSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        product_id = serializer.validated_data['product']
+        product_id = serializer.validated_data['product_id']
+        variation_id = serializer.validated_data.get('variation_id')
         quantity = serializer.validated_data['quantity']
-        
+
         product = get_object_or_404(Product, id=product_id)
-        
+        variation = get_object_or_404(ProductVariation, id=variation_id) if variation_id else None
+
         cart_item, created = CartItem.objects.get_or_create(
-            cart=cart, product=product, 
+            cart=cart,
+            product=product,
+            variation=variation,
             defaults={'quantity': quantity}
         )
-        
+
         if not created:
             cart_item.quantity += quantity
             cart_item.save()
-        
-        cart_serializer = self.get_serializer(cart)
-        return Response(cart_serializer.data)
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'item': openapi.Schema(type=openapi.TYPE_INTEGER),
-            }
-        )
-    )
 
-    @action(detail=True, methods=['post'])
+        cart_item_serializer = CartItemSerializer(cart_item)
+        return Response(cart_item_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], serializer_class=CartSerializer)
     def remove_item(self, request, pk=None):
         cart = self.get_object()
-        serializer = RemoveItemSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        item_id = serializer.validated_data['item']
-        
-        cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
+        cart_item_id = serializer.validated_data['cart_item_id']
+        cart_item = get_object_or_404(CartItem, id=cart_item_id, cart=cart)
         cart_item.delete()
-        cart_serializer = self.get_serializer(cart)
-        return Response(cart_serializer.data)
-    
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'item': openapi.Schema(type=openapi.TYPE_INTEGER),
-                'quantity': openapi.Schema(type=openapi.TYPE_INTEGER),
-            }
-        )
-    )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=['post'])
-    def update_item_quantity(self, request, pk=None):
+
+    @action(detail=True, methods=['get'])
+    def get_total(self, request, pk=None):
         cart = self.get_object()
-        serializer = UpdateItemQuantitySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        item_id = serializer.validated_data['item']
-        new_quantity = serializer.validated_data['quantity']
-
-        cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
-        cart_item.quantity = new_quantity
-        cart_item.save()
-
-        cart_serializer = self.get_serializer(cart)
-        return Response(cart_serializer.data)
-
-    @action(detail=True, methods=['post'])
-    def clear(self, request, pk=None):
-        cart = self.get_object()
-        cart.items.all().delete()
-        cart_serializer = self.get_serializer(cart)
-        return Response(cart_serializer.data)
+        return Response({'total': cart.total_amount}, status=status.HTTP_200_OK)
 
 
 class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
     serializer_class = OrderSerializer
-    permission_classes = [IsCustomer]
-    
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'delivery_method': openapi.Schema(type=openapi.TYPE_STRING, default='Delivery'),
-            }
-        ),
-        responses={
-            status.HTTP_201_CREATED: openapi.Response(
-                description="Order created successfully",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'order': openapi.Schema(type=openapi.TYPE_OBJECT),
-                        'payment_link': openapi.Schema(type=openapi.TYPE_STRING),
-                    }
-                )
-            ),
-            status.HTTP_400_BAD_REQUEST: "Cart is empty",
-        }
-    )
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Order.objects.filter(customer=self.request.user)
@@ -166,16 +92,19 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         order_data = {
             'customer': request.user.id,
-            'delivery_method': request.data.get('delivery_method', 'Delivery'),
-            'total_amount': cart.total_amount
+            'shipping_method': request.data.get('shipping_method', 'Door Delivery'),
+            'total_amount': cart.total_amount,
+            'subtotal': cart.subtotal,
+            'vat_amount': cart.vat_amount,
+            'shipping_rate': cart.shipping_rate,
+            'status': 'Pending',
+            'shipping_address': request.data.get('shipping_address', '')
         }
         
-        # Validate and create the order
         order_serializer = OrderSerializer(data=order_data)
         order_serializer.is_valid(raise_exception=True)
         order = order_serializer.save()
 
-        # Create OrderItems from CartItems
         for cart_item in cart.items.all():
             OrderItem.objects.create(
                 order=order,
@@ -186,11 +115,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 vendor=cart_item.product.vendor
             )
 
-        # Clear the cart after order creation
+        OrderStatusUpdate.objects.create(order=order, status='Pending', completed=True)
+
         cart.items.all().delete()
 
-        # Paystack payment integration
-        payment_link = create_paystack_payment_link(order)  
+        payment_link = self.create_paystack_payment_link(order, request)
         order.payment_reference = payment_link['reference']
         order.save()
 
@@ -199,82 +128,134 @@ class OrderViewSet(viewsets.ModelViewSet):
             'payment_link': payment_link['authorization_url']
         }, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'])
-    def update_status(self, request, pk=None):
-        order = self.get_object()
-        new_status = request.data.get('status')
-        if new_status in dict(Order.STATUS_CHOICES):
-            order.status = new_status
-            order.save()
-            serializer = self.get_serializer(order)
-            return Response(serializer.data)
-        raise ValidationError('Invalid status')
+    def create_paystack_payment_link(self, order, request):
+        url = 'https://api.paystack.co/transaction/initialize'
+        headers = {
+            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
+            'Content-Type': 'application/json',
+        }
+        callback_url = request.build_absolute_uri(reverse('paystack_webhook'))  # Pointing to the webhook
+        data = {
+            'amount': int(order.total_amount * 100),  # Amount in kobo
+            'email': request.user.email,
+            'reference': f'order_{order.id}',
+            'callback_url': callback_url,
+            'channels': ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
+        }
 
-    @action(detail=True, methods=['get'])
-    def get_order_details(self, request, pk=None):
-        order = self.get_object()
-        serializer = self.get_serializer(order)
-        return Response(serializer.data)
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            return response.json()['data']
+        raise ValidationError('Failed to create payment link')
 
-    @action(detail=False, methods=['get'])
-    def get_user_orders(self, request):
-        orders = self.get_queryset().order_by('-created_at')
-        page = self.paginate_queryset(orders)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(orders, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['post'])
-    def cancel_order(self, request, pk=None):
-        order = self.get_object()
-        if order.status == 'Pending':
-            order.status = 'Cancelled'
-            order.save()
-            serializer = self.get_serializer(order)
-            return Response(serializer.data)
-        raise ValidationError('Order cannot be cancelled')
 
     
-
-
-
 @csrf_exempt
+@require_POST
 def paystack_webhook(request):
-    # Only allow POST requests
-    if request.method == 'POST':
-        # Retrieve the event payload
-        payload = json.loads(request.body)
-        event = payload.get('event')
-        data = payload.get('data', {})
-        
-        # Get the reference and order
-        reference = data.get('reference')
-        try:
-            order = Order.objects.get(payment_reference=reference)
-        except Order.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Order not found'}, status=400)
+    paystack_secret = settings.PAYSTACK_SECRET_KEY
+    payload = request.body
+    signature = request.headers.get('X-Paystack-Signature')
 
-        # Handle different Paystack events
-        if event == 'charge.success':
-            # Verify the payment status
-            if data.get('status') == 'success':
-                # Mark order as paid
-                order.payment_status = 'Paid'
-                order.status = 'Processing'
-                order.save()
-                return JsonResponse({'status': 'success', 'message': 'Payment successful'}, status=200)
-        
-        elif event == 'charge.failed':
-            # Mark order as failed
-            order.payment_status = 'Failed'
-            order.status = 'Cancelled'
+    if not signature:
+        return HttpResponse(status=400)
+
+    # Verify the webhook signature
+    expected_signature = hmac.new(paystack_secret.encode('utf-8'), payload, hashlib.sha512).hexdigest()
+    if signature != expected_signature:
+        return HttpResponse(status=400)
+
+    # Parse the payload
+    try:
+        payload = json.loads(payload)
+        event = payload['event']
+        data = payload['data']
+    except (json.JSONDecodeError, KeyError):
+        return HttpResponse(status=400)
+
+    # Retrieve the payment details
+    reference = data.get('reference')
+    amount = data.get('amount')
+    payment_method = data.get('channel')
+
+    try:
+        order = Order.objects.get(payment_reference=reference)
+    except Order.DoesNotExist:
+        return HttpResponse(status=404)
+
+    # Handle different Paystack events
+    if event == 'charge.success':
+        if data.get('status') == 'success':
+            # Mark order as paid
+            order.status = 'Processing'
+            order.payment_status = 'Paid'
+            order.payment_method = payment_method
             order.save()
-            return JsonResponse({'status': 'error', 'message': 'Payment failed'}, status=200)
+            OrderStatusUpdate.objects.create(order=order, status='Processing', completed=True)
+    
+    elif event == 'charge.failed':
+        # Mark order as failed
+        order.payment_status = 'Failed'
+        order.status = 'Cancelled'
+        order.payment_method = payment_method
+        order.save()
+        OrderStatusUpdate.objects.create(order=order, status='Cancelled', completed=True)
+    
+    # Handle other events if needed (e.g., 'charge.dispute', etc.)
+    elif event == 'charge.dispute.create':
+        # Log the dispute and potentially flag the order for review
+        order.status = 'Disputed'
+        order.save()
+        OrderStatusUpdate.objects.create(order=order, status='Disputed', completed=False)
+    
+    # Add more event handlers as needed
+
+    return HttpResponse(status=200)
+
+
+
+# @csrf_exempt
+# def paystack_webhook(request):
+#     # Only allow POST requests
+#     if request.method == 'POST':
+#         # Retrieve the event payload
+#         payload = json.loads(request.body)
+#         event = payload.get('event')
+#         data = payload.get('data', {})
         
-        # Handle other events if needed (e.g., 'charge.dispute', etc.)
+#         # Retrieve the payment details
+#         reference = payload['data']['reference']
+#         amount = payload['data']['amount']
+#         payment_method = payload['data']['channel']
+        
+#         try:
+#             order = Order.objects.get(payment_reference=reference)
+#         except Order.DoesNotExist:
+#             return JsonResponse({'status': 'error', 'message': 'Order not found'}, status=400)
 
-        return JsonResponse({'status': 'success', 'message': 'Event processed'}, status=200)
+#         # Handle different Paystack events
+#         if event == 'charge.success':
+#             # Verify the payment status
+#             if data.get('status') == 'success':
+#                 # Mark order as paid
+#                 order.status = 'Processing'
+#                 order.payment_status = 'Paid'
+#                 order.payment_method = payment_method
+#                 order.save()
+#                 OrderStatusUpdate.objects.create(order=order, status='Processing', completed=True)
+#                 return JsonResponse({'status': 'success', 'message': 'Payment successful'}, status=200)
+        
+#         elif event == 'charge.failed':
+#             # Mark order as failed
+#             order.payment_status = 'Failed'
+#             order.status = 'Cancelled'
+#             order.payment_method = payment_method
+#             order.save()
+#             OrderStatusUpdate.objects.create(order=order, status='Pending', completed=False)
+#             return JsonResponse({'status': 'error', 'message': 'Payment failed'}, status=200)
+        
+#         # Handle other events if needed (e.g., 'charge.dispute', etc.)
 
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+#         return JsonResponse({'status': 'success', 'message': 'Event processed'}, status=200)
+
+#     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)

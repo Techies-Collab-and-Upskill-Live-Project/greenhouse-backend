@@ -1,16 +1,11 @@
-
 from rest_framework import serializers
-from .models import *
-from products.serializers import *
+from .models import Cart, CartItem, Order, OrderItem
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
-    variation = ProductVariationSerializer(read_only=True)
-    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-
     class Meta:
         model = CartItem
         fields = ['id', 'product', 'variation', 'quantity', 'subtotal']
+        read_only_fields = ['subtotal']
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
@@ -19,33 +14,35 @@ class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
         fields = ['id', 'customer', 'items', 'total_amount', 'created_at', 'updated_at']
+        read_only_fields = ['customer', 'total_amount']
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
-    variation = ProductVariationSerializer(read_only=True)
-
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'variation', 'quantity', 'price', 'vendor']
+        fields = ['id', 'product', 'quantity', 'price']
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
-        fields = ['id', 'customer', 'delivery_method', 'status', 'payment_status',
-                 'payment_reference', 'total_amount', 'tracking_number', 'items',
-                 'created_at', 'updated_at']
-        
-        
-class AddItemSerializer(serializers.Serializer):
-    product = serializers.UUIDField()
-    variation = serializers.UUIDField(required=False, allow_null=True)
-    quantity = serializers.IntegerField(min_value=1)
+        fields = ['id', 'customer', 'created_at', 'status', 'total_amount', 'subtotal',
+                  'vat_percentage', 'vat_amount', 'shipping_rate', 'shipping_address',
+                  'payment_method', 'payment_status', 'shipping_method', 'items']
+        read_only_fields = ['customer', 'total_amount', 'subtotal', 'vat_amount']
 
-class UpdateItemQuantitySerializer(serializers.Serializer):
-    item = serializers.UUIDField()
-    quantity = serializers.IntegerField(min_value=1)
+    def create(self, validated_data):
+        # Calculate VAT amount
+        subtotal = validated_data['subtotal']
+        vat_percentage = validated_data['vat_percentage']
+        vat_amount = subtotal * (vat_percentage / 100)
+        
+        # Calculate total amount
+        shipping_rate = validated_data['shipping_rate']
+        total_amount = subtotal + vat_amount + shipping_rate
 
-class RemoveItemSerializer(serializers.Serializer):
-    item = serializers.UUIDField()
+        # Update the validated data
+        validated_data['vat_amount'] = vat_amount
+        validated_data['total_amount'] = total_amount
+
+        return super().create(validated_data)

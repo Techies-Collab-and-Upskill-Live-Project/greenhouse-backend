@@ -26,23 +26,29 @@ class ProductViewSet(viewsets.ModelViewSet):
         vendor = Vendor.objects.get(user=self.request.user)
         product = serializer.save(vendor=vendor)
         
+        # Handle product images
+        images_data = self.request.FILES.getlist('images')
+        for image_data in images_data:
+            ProductImage.objects.create(product=product, image=image_data)
+        
         response_data = serializer.data
-        response_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/api/cart/add-item/?product_id={product.id}')
-        response_data['create_order_url'] = self.request.build_absolute_uri(f'/api/order/create-order/?product_id={product.id}')
+        # response_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/api/cart/add-item/?product_id={product.id}')
+        # response_data['create_order_url'] = self.request.build_absolute_uri(f'/api/order/create-order/?product_id={product.id}')
+        
+        # Include image URLs in the response
+        response_data['images'] = ProductImageSerializer(product.images.all(), many=True).data
         
         return Response(response_data, status=status.HTTP_201_CREATED)
 
-        
     @action(detail=False, methods=['get'], url_path='listing', permission_classes=[AllowAny])
     def product_listing(self, request):
-        queryset = self.filter_queryset(self.get_queryset())  # Use the filtering, search, and ordering
-        serializer = ProductSerializer(queryset, many=True)
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = ProductSerializer(queryset, many=True, context={'request': request})
 
-        # Modify the serialized data to include the additional URLs
-        for product_data in serializer.data:
-            product_id = product_data['id']
-            product_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/cart/add-item/?product_id={product_id}')
-            product_data['create_order_url'] = self.request.build_absolute_uri(f'/order/create-order/?product_id={product_id}')
+        # for product_data in serializer.data:
+        #     product_id = product_data['id']
+        #     product_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/api/cart/add-item/?product_id={product_id}')
+        #     product_data['create_order_url'] = self.request.build_absolute_uri(f'/api/order/create-order/?product_id={product_id}')
 
         return Response(serializer.data)
 

@@ -3,6 +3,8 @@ from django.utils.crypto import get_random_string
 import uuid, random
 from users.models import Vendor
 from decimal import Decimal
+from cloudinary.models import CloudinaryField
+
 
 
 class Category(models.Model):
@@ -53,8 +55,8 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='product_images/', blank=True, null=True)
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='images')
+    image = CloudinaryField('image', folder='product_images', blank=True, null=True)
     
     def __str__(self):
         return f"{self.product.name} Image"
