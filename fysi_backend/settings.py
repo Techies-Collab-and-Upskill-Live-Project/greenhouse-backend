@@ -2,6 +2,10 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
+import cloudinary
+import cloudinary.uploader
+
 
 # Load environment variables
 load_dotenv()
@@ -45,7 +49,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_yasg',    
     'django_filters',
-    'corsheaders'
+    'corsheaders',
+    # 'cloudinary_storage',
+    'cloudinary',
 ]
 
 
@@ -96,31 +102,31 @@ WSGI_APPLICATION = 'fysi_backend.wsgi.application'
 
 AUTH_USER_MODEL = 'users.User'
 
-PAYSTACK_SECRET_KEY = 'PAYSTACK_SECRET_KEY'
-PAYSTACK_PUBLIC_KEY = 'PAYSTACK_PUBLIC_KEY'
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
+PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
 
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),  
-        'USER': os.getenv('DB_USER'), 
-        'PASSWORD': os.getenv('DB_PASSWORD'),  
-        'HOST': os.getenv('DB_HOST'),  
-        'PORT': os.getenv('DB_PORT'), 
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.getenv('DB_NAME'),  
+#         'USER': os.getenv('DB_USER'), 
+#         'PASSWORD': os.getenv('DB_PASSWORD'),  
+#         'HOST': os.getenv('DB_HOST'),  
+#         'PORT': os.getenv('DB_PORT'), 
+#     }
+# }
 
 
 
@@ -138,7 +144,6 @@ REST_FRAMEWORK = {
     ),
 }
 
-from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=90),  # Adjust as needed
@@ -158,8 +163,36 @@ SWAGGER_SETTINGS = {
             'in': 'header',
         },
     },
-    'USE_SESSION_AUTH': False,  # Disable session authentication for Swagger
+    # 'USE_SESSION_AUTH': False,  # Disable session authentication for Swagger
 }
+
+
+# from cloudinary.utils import cloudinary_url
+
+# Configuration       
+cloudinary.config( 
+    cloud_name = os.getenv('cloud_name'), 
+    api_key = os.getenv('cloud_api_key'), 
+    api_secret = os.getenv('cloud_secret_key'), 
+    secure=True
+)
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+
+# Upload an image
+# upload_result = cloudinary.uploader.upload("https://res.cloudinary.com/demo/image/upload/getting-started/shoes.jpg",
+#                                            public_id="shoes")
+# print(upload_result["secure_url"])
+
+# # Optimize delivery by resizing and applying auto-format and auto-quality
+# optimize_url, _ = cloudinary_url("shoes", fetch_format="auto", quality="auto")
+# print(optimize_url)
+
+# # Transform the image: auto-crop to square aspect_ratio
+# auto_crop_url, _ = cloudinary_url("shoes", width=500, height=500, crop="auto", gravity="auto")
+# print(auto_crop_url)
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

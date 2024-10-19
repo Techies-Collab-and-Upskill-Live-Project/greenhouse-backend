@@ -8,9 +8,14 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = ProductImage
-        fields = ['id', 'image']
+        fields = ['id', 'image_url']
+
+    def get_image_url(self, obj):
+        return obj.image.url
 
 class ProductVariationSerializer(serializers.ModelSerializer):
     class Meta:

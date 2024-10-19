@@ -14,6 +14,8 @@ class Cart(models.Model):
     @property
     def total_amount(self):
         return sum(item.subtotal for item in self.items.all())
+    
+    
 
 class CartItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -29,13 +31,10 @@ class CartItem(models.Model):
     def subtotal(self):
         price = self.product.pricing.sale_price or self.product.pricing.base_price
         return price * self.quantity
+    
+    
 
 class Order(models.Model):
-    DELIVERY_METHOD_CHOICES = [
-        ('Delivery', 'Delivery'),
-        ('Postal', 'Postal'),
-        ('Pickup', 'Pickup')
-    ]
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Processing', 'Processing'),
@@ -43,31 +42,35 @@ class Order(models.Model):
         ('Delivered', 'Delivered'),
         ('Cancelled', 'Cancelled')
     ]
-    PAYMENT_STATUS_CHOICES = [
-        ('Pending', 'Pending'),
-        ('Paid', 'Paid'),
-        ('Failed', 'Failed')
+    
+    SHIPPING_METHOD_CHOICES = [
+        ('Door Delivery', 'Door Delivery'),
+        ('Pickup', 'Pickup'),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.AutoField(primary_key=True)
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
-    delivery_method = models.CharField(max_length=50, choices=DELIVERY_METHOD_CHOICES)
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
-    payment_status = models.CharField(max_length=50, choices=PAYMENT_STATUS_CHOICES, default='Pending')
-    payment_reference = models.CharField(max_length=100, null=True, blank=True)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    tracking_number = models.CharField(max_length=100, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f'Order {self.id} - {self.customer.username}'
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Received')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    vat_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    vat_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    shipping_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    shipping_address = models.TextField()
+    payment_method = models.CharField(max_length=20)
+    payment_reference = models.CharField(max_length=100, blank=True, null=True)
+    payment_status = models.CharField(max_length=50)
+    shipping_method = models.CharField(max_length=20, choices=SHIPPING_METHOD_CHOICES)
 
 class OrderItem(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, null=True, blank=True)
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Price at time of order
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+class OrderStatusUpdate(models.Model):
+    order = models.ForeignKey(Order, related_name='status_updates', on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=Order.STATUS_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    completed = models.BooleanField(default=False)
