@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'drf_yasg',    
     'django_filters',
     'corsheaders',
-    # 'cloudinary_storage',
+    'cloudinary_storage',
     'cloudinary',
 ]
 
@@ -175,6 +175,12 @@ cloudinary.config(
     api_secret = os.getenv('cloud_secret_key'), 
     secure=True
 )
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv('cloud_name'),
+    'API_KEY': os.getenv('cloud_api_key'),
+    'API_SECRET': os.getenv('cloud_secret_key')
+}
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 

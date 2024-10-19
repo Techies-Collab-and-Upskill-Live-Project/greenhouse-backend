@@ -8,7 +8,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    # image_url = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductImage
@@ -40,7 +40,7 @@ class PricingSerializer(serializers.ModelSerializer):
         
 
 class ProductSerializer(serializers.ModelSerializer):
-    images = ProductImageSerializer(many=True)
+    images = ProductImageSerializer(many=True, read_only=True)
     variations = ProductVariationSerializer(many=True)
     specification = ProductSpecificationSerializer()
     pricing = PricingSerializer()
