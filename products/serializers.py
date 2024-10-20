@@ -12,10 +12,11 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'image_url']
+        fields = ['id', 'image' 'image_url']
 
     def get_image_url(self, obj):
         return obj.image.url
+    
 
 class ProductVariationSerializer(serializers.ModelSerializer):
     class Meta:
