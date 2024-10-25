@@ -92,3 +92,57 @@ class OrderItem(models.Model):
 
 
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM2NTA2MzY1LCJpYXQiOjE3Mjg3MzAzNjUsImp0aSI6IjcwNTRlODQ0MDYwNjQ1MDJiNGU0MjBhNjM5NmEzOTkyIiwidXNlcl9pZCI6Ijc0MDZjNTVhLTFkMWMtNDA2Ny1iM2NlLTdmZjA1OWE5MGYyNiJ9.21s4CxHIDXff_JTUHovWRtVz9k0WZKUGCn61WCvjm_4
+
+
+
+
+
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsVendor]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    
+    filterset_fields = ['category', 'brand', 'color', 'vendor', 'status']
+    search_fields = ['name', 'description']
+    ordering_fields = ['created_on', 'price']
+
+    def perform_create(self, serializer):
+        vendor = Vendor.objects.get(user=self.request.user)
+        product = serializer.save(vendor=vendor)
+        
+        # Handle product images
+        images_data = self.request.FILES.getlist('images')
+        for image_data in images_data:
+            ProductImage.objects.create(product=product, image=image_data)
+        
+        response_data = serializer.data
+        response_data['images'] = ProductImageSerializer(product.images.all(), many=True).data
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    def perform_update(self, serializer):
+        product = serializer.save()
+
+        # Handle updating product images if sent in PATCH request
+        if 'images' in self.request.FILES:
+            images_data = self.request.FILES.getlist('images')
+            for image_data in images_data:
+                ProductImage.objects.create(product=product, image=image_data)
+
+        response_data = serializer.data
+        response_data['images'] = ProductImageSerializer(product.images.all(), many=True).data
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='listing', permission_classes=[AllowAny])
+    def product_listing(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = ProductSerializer(queryset, many=True, context={'request': request})
+
+        # for product_data in serializer.data:
+        #     product_id = product_data['id']
+        #     product_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/api/cart/add-item/?product_id={product_id}')
+        #     product_data['create_order_url'] = self.request.build_absolute_uri(f'/api/order/create-order/?product_id={product_id}')
+
+        return Response(serializer.data)

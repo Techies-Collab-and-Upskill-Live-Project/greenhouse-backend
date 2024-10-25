@@ -2,10 +2,22 @@ from rest_framework import serializers
 from .models import Cart, CartItem, Order, OrderItem
 
 class CartItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.UUIDField(required=True)
+    variation_id = serializers.UUIDField(required=False, allow_null=True)
+    quantity = serializers.IntegerField(min_value=1, default=1)
+    
+    
     class Meta:
         model = CartItem
-        fields = ['id', 'product', 'variation', 'quantity', 'subtotal']
+        fields = ['id', 'product_id', 'variation_id', 'quantity', 'subtotal']
         read_only_fields = ['subtotal']
+        
+        
+        def validate(self, data):
+        # Add any additional validation logic here
+            if data.get('quantity', 1) < 1:
+                raise serializers.ValidationError("Quantity must be at least 1")
+            return data
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
@@ -15,6 +27,11 @@ class CartSerializer(serializers.ModelSerializer):
         model = Cart
         fields = ['id', 'customer', 'items', 'total_amount', 'created_at', 'updated_at']
         read_only_fields = ['customer', 'total_amount']
+        
+        
+class RemoveCartItemSerializer(serializers.Serializer):
+    cart_item_id = serializers.UUIDField(required=True)
+    quantity = serializers.IntegerField(required=False, min_value=1)
 
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
