@@ -8,11 +8,11 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'image_url']
+        fields = ['id', 'image', 'image_url']
 
     def get_image_url(self, product_image):
         return product_image.image.url
@@ -40,7 +40,7 @@ class PricingSerializer(serializers.ModelSerializer):
         
 
 class ProductSerializer(serializers.ModelSerializer):
-    images = ProductImageSerializer(many=True, read_only=True)
+    images = ProductImageSerializer(many=True)
     variations = ProductVariationSerializer(many=True)
     specification = ProductSpecificationSerializer()
     pricing = PricingSerializer()
