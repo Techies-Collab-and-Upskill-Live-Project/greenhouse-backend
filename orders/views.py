@@ -20,53 +20,153 @@ from django.http import HttpResponse, JsonResponse
 
 
 class CartViewSet(viewsets.ModelViewSet):
-    queryset = Cart.objects.all()
     serializer_class = CartSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Ensure user is authenticated before accessing
+        if not self.request.user.is_authenticated:
+            return Cart.objects.none()
         return Cart.objects.filter(customer=self.request.user)
 
-    def perform_create(self, serializer):
-        serializer.save(customer=self.request.user)
-
-    @action(detail=True, methods=['post'], serializer_class=CartItemSerializer)
-    def add_item(self, request, pk=None):
-        cart = self.get_object()
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        product_id = serializer.validated_data['product_id']
-        variation_id = serializer.validated_data.get('variation_id')
-        quantity = serializer.validated_data['quantity']
-
-        product = get_object_or_404(Product, id=product_id)
-        variation = get_object_or_404(ProductVariation, id=variation_id) if variation_id else None
-
-        cart_item, created = CartItem.objects.get_or_create(
-            cart=cart,
-            product=product,
-            variation=variation,
-            defaults={'quantity': quantity}
+    def get_object(self):
+        # Get or create cart for the user
+        cart, created = Cart.objects.get_or_create(
+            customer=self.request.user,
+            defaults={} # Add any default fields your Cart model needs
         )
+        return cart
 
-        if not created:
-            cart_item.quantity += quantity
-            cart_item.save()
+    @action(detail=False, methods=['post'], serializer_class=CartItemSerializer)
+    def add_item(self, request):
+        try:
+            cart = self.get_object()
+            serializer = self.get_serializer(data=request.data)
+            
+            # Explicitly validate and handle validation errors
+            if not serializer.is_valid():
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Safely get values with proper error handling
+            product_id = serializer.validated_data.get('product_id')
+            if not product_id:
+                return Response(
+                    {'error': 'product_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            variation_id = serializer.validated_data.get('variation_id')
+            quantity = serializer.validated_data.get('quantity', 1)  # Default to 1 if not specified
+            
+            # Validate product exists
+            try:
+                product = get_object_or_404(Product, id=product_id)
+            except ValidationError:
+                return Response(
+                    {'error': 'Invalid product_id format'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate variation if provided
+            variation = None
+            if variation_id:
+                try:
+                    variation = get_object_or_404(ProductVariation, id=variation_id)
+                    # Verify variation belongs to product
+                    if variation.product_id != product.id:
+                        return Response(
+                            {'error': 'Variation does not belong to the specified product'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                except ValidationError:
+                    return Response(
+                        {'error': 'Invalid variation_id format'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Get or create cart item with error handling
+            try:
+                cart_item, created = CartItem.objects.get_or_create(
+                    cart=cart,
+                    product=product,
+                    variation=variation,
+                    defaults={'quantity': quantity}
+                )
+                
+                if not created:
+                    cart_item.quantity += quantity
+                    cart_item.save()
+                
+                cart_item_serializer = CartItemSerializer(cart_item)
+                return Response(
+                    cart_item_serializer.data,
+                    status=status.HTTP_201_CREATED
+                )
+                
+            except Exception as e:
+                return Response(
+                    {'error': str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            return Response(
+                {'error': 'An unexpected error occurred', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        cart_item_serializer = CartItemSerializer(cart_item)
-        return Response(cart_item_serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=['post'], serializer_class=CartSerializer)
-    def remove_item(self, request, pk=None):
-        cart = self.get_object()
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        cart_item_id = serializer.validated_data['cart_item_id']
-        cart_item = get_object_or_404(CartItem, id=cart_item_id, cart=cart)
-        cart_item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    @action(detail=False, methods=['post'], serializer_class=RemoveCartItemSerializer)
+    def remove_item(self, request):
+        try:
+            cart = self.get_object()
+            serializer = self.get_serializer(data=request.data)
+            
+            if not serializer.is_valid():
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            try:
+                # Ensure the cart item exists and belongs to the user's cart
+                cart_item = CartItem.objects.get(
+                    id=serializer.validated_data['cart_item_id'],
+                    cart=cart
+                )
+            except CartItem.DoesNotExist:
+                return Response(
+                    {'error': 'Cart item not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+                
+            # Handle quantity-based removal if specified
+            quantity_to_remove = serializer.validated_data.get('quantity')
+            
+            if quantity_to_remove:
+                if quantity_to_remove < cart_item.quantity:
+                    cart_item.quantity -= quantity_to_remove
+                    cart_item.save()
+                    return Response(
+                        CartItemSerializer(cart_item).data,
+                        status=status.HTTP_200_OK
+                    )
+            
+            # Delete the cart item
+            cart_item.delete()
+            
+            return Response(
+                {'message': 'Item removed from cart'},
+                status=status.HTTP_204_NO_CONTENT
+            )
+            
+        except Exception as e:
+            return Response(
+                {'error': 'An unexpected error occurred', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
     @action(detail=True, methods=['get'])

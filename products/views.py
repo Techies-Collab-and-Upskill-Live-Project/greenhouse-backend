@@ -60,6 +60,22 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
+
+    @action(detail=True, methods=['get'], url_path='detail', permission_classes=[AllowAny])
+    def product_detail(self, request, pk=None):
+        # Fetch the product using the primary key from the URL
+        try:
+            product = self.get_object()
+        except Product.DoesNotExist:
+            return Response({"detail": "Product not found."}, status=404)
+        
+        serializer = ProductSerializer(product, context={'request': request})
+        
+        # Add additional URLs to the response data
+        product_data = serializer.data
+    
+        
+        return Response(product_data)
     
 
     # Export action
