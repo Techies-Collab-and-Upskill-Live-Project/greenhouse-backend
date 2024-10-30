@@ -511,16 +511,39 @@ class VendorViewSet(viewsets.ViewSet):
         required_keys = ['country', 'email_verified', 'phone_number', 'password', 'user_type']
         if not all(key in request.session for key in required_keys):
             return Response({"error": "Please complete all previous registration steps"}, status=status.HTTP_400_BAD_REQUEST)
-        
+         # Validate the shop data from the request
         serializer = FlexibleVendorShopSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        vendor_data = {key: serializer.validated_data[key] for key in required_keys}
 
-        vendor = Vendor.objects.create(**vendor_data)
-        vendor.is_active = True
-        vendor.save()
+    # Extracting data from session
+        email = request.session['email_verified']
+        phone_number = request.session['phone_number']
+        password = request.session['password']
+        user_type = request.session['user_type']
+        country = request.session['country']
+
+    # Check if the User already exists
+        user, created = User.objects.get_or_create(
+        email=email,
+        defaults={
+            'phone_number': phone_number,
+            'password': password,  # Ensure password is hashed by create_user
+            'user_type': user_type,
+            'country': country,
+            'is_active': True
+        }
+    )
+        if not created:
+            if hasattr(user, 'vendor'):
+                return Response({"error": "A vendor with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Create the Vendor instance linked to the existing or new User
+        vendor = Vendor.objects.create(user=user, **serializer.validated_data)
+    
+    # Clear the session data
         for key in required_keys:
             del request.session[key]
+        
         
         return Response({
             "message": "Vendor registered successfully.",
