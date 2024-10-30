@@ -5,7 +5,9 @@ from .models import User
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from products.models import *
-from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.core.mail import EmailMultiAlternatives
 from rest_framework_simplejwt.tokens import RefreshToken
 import random
 from django.core.cache import cache
@@ -29,14 +31,22 @@ def create_and_send_otp(user):
         # generate OTP
         try:
             user.generate_otp()
-            # send the OTP
-            send_mail(
-            'OTP Verification',
-            f'Your Activation PIN is {user.otp}',
-            'youremail@example.com',
-            [user.email],
-            fail_silently=False,
+            context = {
+            'otp': user.otp
+        }
+            #send the OTP
+            html_content = render_to_string('products/otp_email_template.html', context)
+            text_content = strip_tags(html_content)
+            
+            #Create the email
+            email = EmailMultiAlternatives(
+            subject='OTP Verification',
+            body=text_content,
+            from_email='youremail@example.com',
+            to=[user.email]
         )
+            email.attach_alternative(html_content, "text/html")
+            email.send()
             return {"message": "OTP sent to your email"}, status.HTTP_201_CREATED
         except User.DoesNotExist:
             return {"invalid email"}, status.HTTP_400_BAD_REQUEST
@@ -304,24 +314,24 @@ class VendorViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'], url_path='email', serializer_class=VendorEmailSerializer)
     def submit_email(self, request, *args, **kwargs):
-        """
-        Step 2: Vendor submits email to receive an OTP.
-        """
+        #Step 2: Vendor submits email to receive an OTP.
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
-        cache.set(f"otp_{email}", otp, timeout=300)
         
-        send_mail(
-            'Your OTP for registration',
-            f'Your OTP is: {otp}',
-            'from@fysi.com',
-            [email],
-            fail_silently=False,
-        )
-        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
-
+        #Check if the user with this email exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            #If the user doesn’t exist, create one
+            user = User.objects.create(email=email)
+        #Generate OTP, store in cache, and send email
+        response_data, status_code = create_and_send_otp(user)
+        if status_code == status.HTTP_201_CREATED:
+            cache.set(f"otp_{email}", user.otp, timeout=300)  # Cache OTP for verification
+            return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
+        else:
+            return Response(response_data, status=status_code)
     @action(detail=False, methods=['post'], url_path='otp-verify', serializer_class=ActivationSerializer)
     def verify_otp(self, request, *args, **kwargs):
         """
@@ -426,20 +436,25 @@ class VendorViewSet(viewsets.ViewSet):
         """
         Step 2: Vendor submits email to receive an OTP.
         """
-        serializer = VendorEmailSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
-        cache.set(f"otp_{email}", otp, timeout=300)
-        send_mail(
-            'Your OTP for registration',
-            f'Your OTP is: {otp}',
-            'from@fysi.com',
-            [email],
-            fail_silently=False,
-        )
-        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
-
+        
+        #Check if the user with this email exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            #If the user doesn’t exist, create one
+            user = User.objects.create(email=email)
+        #Generate OTP, store in cache, and send email
+        response_data, status_code = create_and_send_otp(user)
+        if status_code == status.HTTP_201_CREATED:
+            cache.set(f"otp_{email}", user.otp, timeout=300)
+            return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
+        else:
+            return Response(response_data, status=status_code)
+        
+       
     @swagger_auto_schema(
         method='post',
         request_body=ActivationSerializer,

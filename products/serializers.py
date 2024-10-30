@@ -14,9 +14,8 @@ class ProductImageSerializer(serializers.ModelSerializer):
         model = ProductImage
         fields = ['id', 'image', 'image_url']
 
-    def get_image_url(self, obj):
-        return obj.image.url
-    
+    def get_image_url(self, product_image):
+        return product_image.image.url
 
 class ProductVariationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -55,14 +54,14 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['vendor']
 
     def create(self, validated_data):
-        images_data = validated_data.pop('images')
+        #images_data = validated_data.pop('images')
         variations_data = validated_data.pop('variations')
         specification_data = validated_data.pop('specification')
         pricing_data = validated_data.pop('pricing')
         product = Product.objects.create(**validated_data)
         
-        for image_data in images_data:
-            ProductImage.objects.create(product=product, **image_data)
+        # for image_data in images_data:
+        #     ProductImage.objects.create(product=product, **image_data)
         
         for variation_data in variations_data:
             ProductVariation.objects.create(product=product, **variation_data)
