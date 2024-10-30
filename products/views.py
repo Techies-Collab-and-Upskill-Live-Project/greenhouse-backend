@@ -11,9 +11,15 @@ from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.template.loader import get_template
 from xhtml2pdf import pisa
+from rest_framework.exceptions import ValidationError
+# from rest_framework.generics import ListAPIView, 
+from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
+
+
+
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated, IsVendor]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -22,60 +28,108 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description']
     ordering_fields = ['created_on', 'price']
 
+    def get_queryset(self):
+        try:
+            vendor = Vendor.objects.get(user=self.request.user)
+            return Product.objects.filter(vendor=vendor)
+        except Vendor.DoesNotExist:
+            return Product.objects.none()
+
     def perform_create(self, serializer):
-        vendor = Vendor.objects.get(user=self.request.user)
-        product = serializer.save(vendor=vendor)
+        try:
+            # Get the vendor for the authenticated user
+            vendor = Vendor.objects.get(user=self.request.user)
+            
+            # Save the product with vendor
+            product = serializer.save(vendor=vendor)
+            
+            # Handle multiple image uploads
+            images_data = self.request.FILES.getlist('images', [])
+            image_instances = []
+            
+            for image_data in images_data:
+                # Validate image size and format if needed
+                if self._validate_image(image_data):
+                    image_instance = ProductImage.objects.create(
+                        product=product,
+                        image=image_data
+                    )
+                    image_instances.append(image_instance)
+            
+            # Prepare response data
+            response_data = serializer.data
+            response_data['images'] = ProductImageSerializer(image_instances, many=True).data
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
+            
+        except Vendor.DoesNotExist:
+            raise ValidationError({"error": "Vendor profile not found for this user"})
+        except Exception as e:
+            # Delete the product if image handling fails
+            if 'product' in locals():
+                product.delete()
+            raise ValidationError({"error": f"Error creating product: {str(e)}"})
+
+    def _validate_image(self, image):
+        """
+        Validate image file size and format
+        Returns True if valid, False otherwise
+        """
+        # Maximum file size (5MB)
+        MAX_SIZE = 5 * 1024 * 1024
         
-        # Handle product images
-        images_data = self.request.FILES.getlist('images')
-        for image_data in images_data:
-            ProductImage.objects.create(product=product, image=image_data)
+        # Allowed file types
+        ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg']
         
-        response_data = serializer.data
-        response_data['images'] = ProductImageSerializer(product.images.all(), many=True).data
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        # Check file size
+        if image.size > MAX_SIZE:
+            raise ValidationError({
+                "error": f"Image size should not exceed {MAX_SIZE/1024/1024}MB"
+            })
+            
+        # Check file type
+        if hasattr(image, 'content_type') and image.content_type not in ALLOWED_TYPES:
+            raise ValidationError({
+                "error": f"Invalid image format. Allowed formats: {', '.join(ALLOWED_TYPES)}"
+            })
+            
+        return True
 
     def perform_update(self, serializer):
-        product = serializer.save()
-
-        # Handle updating product images if sent in PATCH request
-        if 'images' in self.request.FILES:
-            images_data = self.request.FILES.getlist('images')
-            for image_data in images_data:
-                ProductImage.objects.create(product=product, image=image_data)
-
-        response_data = serializer.data
-        response_data['images'] = ProductImageSerializer(product.images.all(), many=True).data
-        return Response(response_data, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=['get'], url_path='listing', permission_classes=[AllowAny])
-    def product_listing(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = ProductSerializer(queryset, many=True, context={'request': request})
-
-        # for product_data in serializer.data:
-        #     product_id = product_data['id']
-        #     product_data['add_to_cart_url'] = self.request.build_absolute_uri(f'/api/cart/add-item/?product_id={product_id}')
-        #     product_data['create_order_url'] = self.request.build_absolute_uri(f'/api/order/create-order/?product_id={product_id}')
-
-        return Response(serializer.data)
-
-
-    @action(detail=True, methods=['get'], url_path='detail', permission_classes=[AllowAny])
-    def product_detail(self, request, pk=None):
-        # Fetch the product using the primary key from the URL
+        """
+        Override perform_update to handle image updates
+        """
         try:
-            product = self.get_object()
-        except Product.DoesNotExist:
-            return Response({"detail": "Product not found."}, status=404)
-        
-        serializer = ProductSerializer(product, context={'request': request})
-        
-        # Add additional URLs to the response data
-        product_data = serializer.data
+            instance = serializer.save()
+            
+            # Handle image updates if new images are provided
+            images_data = self.request.FILES.getlist('images', [])
+            if images_data:
+                # Optionally clear existing images if needed
+                # instance.images.all().delete()
+                
+                image_instances = []
+                for image_data in images_data:
+                    if self._validate_image(image_data):
+                        image_instance = ProductImage.objects.create(
+                            product=instance,
+                            image=image_data
+                        )
+                        image_instances.append(image_instance)
+                
+                # Update response data with new images
+                response_data = serializer.data
+                response_data['images'] = ProductImageSerializer(
+                    instance.images.all(),
+                    many=True
+                ).data
+                
+                return Response(response_data, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            raise ValidationError({"error": f"Error updating product: {str(e)}"})
+
     
-        
-        return Response(product_data)
     
 
     # Export action
@@ -175,3 +229,34 @@ class ProductViewSet(viewsets.ModelViewSet):
             "data": serializer.data
         }, status=status.HTTP_200_OK)
         
+        
+        
+class ProductListViewSet(ListModelMixin, RetrieveModelMixin, GenericViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [AllowAny]
+    
+    # Adding filtering backends for the list view
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['category', 'brand', 'color', 'vendor', 'status']  # example fields for filtering
+    search_fields = ['name', 'description']   # fields for search
+    ordering_fields = ['price', 'created_at'] # fields for ordering
+    
+    def list(self, request, *args, **kwargs):
+        # Customize the listing response with additional URLs for each product
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
+        
+        # Add additional URLs to each product in the listing
+        product_data_list = serializer.data
+        
+        return Response(product_data_list)
+    
+    def retrieve(self, request, *args, **kwargs):
+        # Retrieve a single product with additional URLs in the response
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, context={'request': request})
+        
+        product_data = serializer.data
+        
+        return Response(product_data)

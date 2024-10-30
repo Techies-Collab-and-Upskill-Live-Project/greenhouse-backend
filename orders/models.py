@@ -67,7 +67,9 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
+    variation = models.ForeignKey('products.ProductVariation', on_delete=models.CASCADE, null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    vendor = models.ForeignKey('users.Vendor', on_delete=models.CASCADE, null=True)
 
 class OrderStatusUpdate(models.Model):
     order = models.ForeignKey(Order, related_name='status_updates', on_delete=models.CASCADE)

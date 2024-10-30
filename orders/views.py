@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError
 from .models import *
 from .serializers import *
+from decimal import Decimal
 import requests
 from django.conf import settings
 from django.urls import reverse
@@ -15,8 +16,12 @@ from django.views.decorators.http import require_POST
 from django.conf import settings
 import json
 import hmac
+from uuid import UUID
 import hashlib
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CartViewSet(viewsets.ModelViewSet):
@@ -175,78 +180,197 @@ class CartViewSet(viewsets.ModelViewSet):
         return Response({'total': cart.total_amount}, status=status.HTTP_200_OK)
 
 
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, UUID):
+            return str(obj)
+        return super().default(obj)
+
 class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Order.objects.filter(customer=self.request.user)
 
+    def create_paystack_payment_link(self, order, request):
+        """Create Paystack payment link with proper UUID handling"""
+        try:
+            url = 'https://api.paystack.co/transaction/initialize'
+            headers = {
+                'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
+                'Content-Type': 'application/json',
+            }
+            
+            callback_url = request.build_absolute_uri(
+                reverse('paystack_webhook')
+            )
+            
+            # Convert all amounts to kobo (smallest currency unit)
+            amount_in_kobo = int(float(order.total_amount) * 100)
+            
+            payload = {
+                'amount': amount_in_kobo,
+                'email': request.user.email,
+                'reference': f'order_{str(order.id)}',
+                'callback_url': callback_url,
+                'channels': ['card', 'bank', 'ussd', 'bank_transfer'],
+                'metadata': {
+                    'order_id': str(order.id),
+                    'customer_id': str(request.user.id),
+                    'customer_email': request.user.email
+                }
+            }
+
+            # Use the custom encoder for the request
+            response = requests.post(
+                url,
+                headers=headers,
+                data=json.dumps(payload, cls=UUIDEncoder),
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Paystack API error: {response.text}")
+                raise ValidationError(f"Payment service error: {response.status_code}")
+
+            response_data = response.json()
+            
+            if not response_data.get('status'):
+                logger.error(f"Paystack API returned error: {response_data.get('message')}")
+                raise ValidationError(response_data.get('message', 'Payment initialization failed'))
+
+            return response_data['data']
+
+        except requests.RequestException as e:
+            logger.error(f"Paystack API request error: {str(e)}")
+            raise ValidationError('Payment service is currently unavailable')
+        
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON response from Paystack: {str(e)}")
+            raise ValidationError('Invalid response from payment service')
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in payment link creation: {str(e)}")
+            raise ValidationError('Failed to create payment link')
+
     @action(detail=False, methods=['post'])
     @transaction.atomic
     def create_from_cart(self, request):
-        cart = get_object_or_404(Cart, customer=request.user)
-        if not cart.items.exists():
-            raise ValidationError('Cart is empty')
+        """Create an order from the user's cart with improved error handling"""
+        try:
+            # Get the user's cart
+            cart = get_object_or_404(Cart, customer=request.user)
+            
+            # Validate cart has items
+            if not cart.items.exists():
+                return Response(
+                    {'error': 'Cart is empty'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        order_data = {
-            'customer': request.user.id,
-            'shipping_method': request.data.get('shipping_method', 'Door Delivery'),
-            'total_amount': cart.total_amount,
-            'subtotal': cart.subtotal,
-            'vat_amount': cart.vat_amount,
-            'shipping_rate': cart.shipping_rate,
-            'status': 'Pending',
-            'shipping_address': request.data.get('shipping_address', '')
-        }
-        
-        order_serializer = OrderSerializer(data=order_data)
-        order_serializer.is_valid(raise_exception=True)
-        order = order_serializer.save()
+            # Validate required fields
+            shipping_address = request.data.get('shipping_address')
+            if not shipping_address:
+                return Response(
+                    {'error': 'Shipping address is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        for cart_item in cart.items.all():
-            OrderItem.objects.create(
+            # Calculate order amounts
+            subtotal = sum(
+                item.quantity * (item.product.pricing.sale_price or item.product.pricing.base_price)
+                for item in cart.items.all()
+            )
+            
+            # Get shipping method and rate
+            shipping_method = request.data.get('shipping_method', 'Door Delivery')
+            shipping_rate = Decimal(request.data.get('shipping_rate', '0.00'))
+            
+            # Calculate VAT
+            vat_percentage = Decimal(request.data.get('vat_percentage', '7.50'))
+            vat_amount = (subtotal * vat_percentage) / Decimal('100.00')
+            
+            # Calculate total
+            total_amount = subtotal + vat_amount + shipping_rate
+
+            # Create order
+            order_data = {
+                'customer': request.user,
+                'shipping_method': shipping_method,
+                'shipping_address': shipping_address,
+                'total_amount': total_amount,
+                'subtotal': subtotal,
+                'vat_percentage': vat_percentage,
+                'vat_amount': vat_amount,
+                'shipping_rate': shipping_rate,
+                'status': 'Pending',
+                'payment_status': 'Pending'
+            }
+
+            order = Order.objects.create(**order_data)
+
+            # Create order items
+            order_items = []
+            for cart_item in cart.items.all():
+                price = cart_item.product.pricing.sale_price or cart_item.product.pricing.base_price
+                order_items.append(
+                    OrderItem(
+                        order=order,
+                        product=cart_item.product,
+                        quantity=cart_item.quantity,
+                        price=price,
+                        vendor=cart_item.product.vendor if hasattr(cart_item.product, 'vendor') else None
+                    )
+                )
+            
+            # Bulk create order items
+            OrderItem.objects.bulk_create(order_items)
+
+            # Create initial status update
+            OrderStatusUpdate.objects.create(
                 order=order,
-                product=cart_item.product,
-                variation=cart_item.variation,
-                quantity=cart_item.quantity,
-                price=cart_item.product.pricing.sale_price or cart_item.product.pricing.base_price,
-                vendor=cart_item.product.vendor
+                status='Pending',
+                completed=True
             )
 
-        OrderStatusUpdate.objects.create(order=order, status='Pending', completed=True)
+            try:
+                # Create payment link with proper error handling
+                payment_data = self.create_paystack_payment_link(order, request)
+                
+                if not payment_data or 'authorization_url' not in payment_data:
+                    raise ValidationError('Invalid payment data received')
 
-        cart.items.all().delete()
+                order.payment_reference = payment_data['reference']
+                order.save()
 
-        payment_link = self.create_paystack_payment_link(order, request)
-        order.payment_reference = payment_link['reference']
-        order.save()
+                return Response({
+                    'order': OrderSerializer(order).data,
+                    'payment_link': payment_data['authorization_url']
+                }, status=status.HTTP_201_CREATED)
 
-        return Response({
-            'order': order_serializer.data,
-            'payment_link': payment_link['authorization_url']
-        }, status=status.HTTP_201_CREATED)
+            except ValidationError as e:
+                logger.error(f"Payment validation error: {str(e)}")
+                order.delete()
+                return Response(
+                    {'error': str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-    def create_paystack_payment_link(self, order, request):
-        url = 'https://api.paystack.co/transaction/initialize'
-        headers = {
-            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
-            'Content-Type': 'application/json',
-        }
-        callback_url = request.build_absolute_uri(reverse('paystack_webhook'))  # Pointing to the webhook
-        data = {
-            'amount': int(order.total_amount * 100),  # Amount in kobo
-            'email': request.user.email,
-            'reference': f'order_{order.id}',
-            'callback_url': callback_url,
-            'channels': ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
-        }
+            except Exception as e:
+                logger.error(f"Payment link creation failed: {str(e)}")
+                order.delete()
+                return Response(
+                    {'error': 'Failed to setup payment. Please try again.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-        response = requests.post(url, headers=headers, json=data)
-        if response.status_code == 200:
-            return response.json()['data']
-        raise ValidationError('Failed to create payment link')
+        except Exception as e:
+            logger.error(f"Order creation failed: {str(e)}")
+            return Response(
+                {'error': 'Failed to create order. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
     
