@@ -514,19 +514,11 @@ class VendorViewSet(viewsets.ViewSet):
         
         serializer = FlexibleVendorShopSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
-        user = User.objects.create_user(
-            email=request.session['email_verified'],
-            phone_number=request.session['phone_number'],
-            password=request.session['password'],
-            user_type=request.session['user_type'],
-            country=request.session['country']
-        )
-        user.is_active = True
-        user.save()
-        
-        vendor = Vendor.objects.create(user=user, **serializer.validated_data)
-        
+        vendor_data = {key: serializer.validated_data[key] for key in required_keys}
+
+        vendor = Vendor.objects.create(**vendor_data)
+        vendor.is_active = True
+        vendor.save()
         for key in required_keys:
             del request.session[key]
         
