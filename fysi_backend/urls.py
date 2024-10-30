@@ -5,7 +5,9 @@ from django.urls import path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from rest_framework.routers import DefaultRouter
 from orders.views import paystack_webhook
+from products.views import ProductListViewSet
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -19,6 +21,9 @@ schema_view = get_schema_view(
    public=True,
    permission_classes=(permissions.AllowAny,)
 )
+router = DefaultRouter()
+
+router.register(r'api/products', ProductListViewSet, basename = 'product_list')
 
 
 urlpatterns = [
@@ -31,4 +36,5 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('api-auth/', include('rest_framework.urls')),    
     path('payment/callback/', paystack_webhook, name='paystack_webhook'),
+    path('', include(router.urls)),
 ]
