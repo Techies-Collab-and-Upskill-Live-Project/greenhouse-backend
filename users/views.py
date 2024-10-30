@@ -436,7 +436,7 @@ class VendorViewSet(viewsets.ViewSet):
         """
         Step 2: Vendor submits email to receive an OTP.
         """
-        serializer = self.get_serializer(data=request.data)
+        serializer = VendorEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
         
