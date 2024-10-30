@@ -14,8 +14,12 @@ class ProductImageSerializer(serializers.ModelSerializer):
         model = ProductImage
         fields = ['id', 'image', 'image_url']
 
-    def get_image_url(self, product_image):
-        return product_image.image.url
+    def get_image_url(self, obj):
+        # Check if product_image exists before accessing the image url
+        product_image = obj.productimage_set.first()  # Adjust this as per your model relationships
+        if product_image and product_image.image:
+            return product_image.image.url
+        return None  # Return None or a default URL if no image exists
 
 class ProductVariationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,7 +44,7 @@ class PricingSerializer(serializers.ModelSerializer):
         
 
 class ProductSerializer(serializers.ModelSerializer):
-    images = ProductImageSerializer(many=True)
+    images = ProductImageSerializer(many=True, )
     variations = ProductVariationSerializer(many=True)
     specification = ProductSpecificationSerializer()
     pricing = PricingSerializer()
