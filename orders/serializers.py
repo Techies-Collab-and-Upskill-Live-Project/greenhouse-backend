@@ -1,7 +1,9 @@
 from rest_framework import serializers
 from .models import Cart, CartItem, Order, OrderItem
+from products.serializers import ProductSerializer
 
 class CartItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only = True, )
     product_id = serializers.UUIDField(required=True)
     variation_id = serializers.UUIDField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1, default=1)
@@ -9,7 +11,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = CartItem
-        fields = ['id', 'product_id', 'variation_id', 'quantity', 'subtotal']
+        fields = ['id', 'product', 'product_id', 'variation_id', 'quantity', 'subtotal']
         read_only_fields = ['subtotal']
         
         
