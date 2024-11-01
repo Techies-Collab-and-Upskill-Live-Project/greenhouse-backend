@@ -530,7 +530,7 @@ class VendorViewSet(viewsets.ViewSet):
             'user_type': user_type,
             'country': country,
             'is_active': True
-        }
+            }
         )
         if created:
             user.set_password(password) 

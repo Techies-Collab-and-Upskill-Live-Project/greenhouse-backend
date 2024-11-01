@@ -21,7 +21,7 @@ from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated, IsVendor]
+#    permission_classes = [IsAuthenticated, IsVendor]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
     filterset_fields = ['category', 'brand', 'color', 'vendor', 'status']
