@@ -55,6 +55,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                         image=image_data
                     )
                     image_instances.append(image_instance)
+            if image_instances:
+                product.images.add(*image_instances)
             
             # Prepare response data
             response_data = serializer.data
