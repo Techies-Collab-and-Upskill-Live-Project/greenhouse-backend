@@ -21,7 +21,7 @@ from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
-#    permission_classes = [IsAuthenticated, IsVendor]
+    permission_classes = [IsAuthenticated, IsVendor]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
     filterset_fields = ['category', 'brand', 'color', 'vendor', 'status']
@@ -38,10 +38,10 @@ class ProductViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         try:
             # Get the vendor for the authenticated user
-           # vendor = Vendor.objects.get(user=self.request.user)
+            vendor = Vendor.objects.get(user=self.request.user)
             
             # Save the product with vendor
-            product = serializer.save()#vendor=vendor)
+            product = serializer.save(vendor=vendor)
             
             # Handle multiple image uploads
             images_data = self.request.FILES.getlist('images', [])
