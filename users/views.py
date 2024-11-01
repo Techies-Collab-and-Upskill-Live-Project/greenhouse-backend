@@ -527,13 +527,15 @@ class VendorViewSet(viewsets.ViewSet):
         email=email,
         defaults={
             'phone_number': phone_number,
-            'password': password,  # Ensure password is hashed by create_user
             'user_type': user_type,
             'country': country,
             'is_active': True
         }
-    )
-        if not created:
+        )
+        if created:
+            user.set_password(password) 
+            user.save()
+        else:
             if hasattr(user, 'vendor'):
                 return Response({"error": "A vendor with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -549,5 +551,3 @@ class VendorViewSet(viewsets.ViewSet):
             "message": "Vendor registered successfully.",
             "vendor": FlexibleVendorShopSerializer(vendor).data,
         }, status=status.HTTP_201_CREATED)
-
-
