@@ -44,17 +44,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             product = serializer.save(vendor=vendor)
             
             # Handle multiple image uploads
-          #  images_data = self.request.FILES.getlist('images', [])
-           # image_instances = []
+            images_data = self.request.FILES.getlist('images', [])
+            image_instances = []
             
-            #for image_data in images_data:
-                # Validate image size and format if needed
-             #   if self._validate_image(image_data):
-              #      image_instance = ProductImage.objects.create(
-               #         product=product,
-                #        image=image_data
-                 #   )
-                  #  image_instances.append(image_instance)
+            for image_data in images_data:
+               #  Validate image size and format if needed
+                if self._validate_image(image_data):
+                    image_instance = ProductImage.objects.create(
+                        product=product,
+                        image=image_data
+                    )
+                    image_instances.append(image_instance)
             
             # Prepare response data
             response_data = serializer.data
