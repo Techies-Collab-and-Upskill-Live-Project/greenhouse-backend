@@ -41,7 +41,7 @@ class PricingSerializer(serializers.ModelSerializer):
         
 
 class ProductSerializer(serializers.ModelSerializer):
-    images = ProductImageSerializer(many=True,)
+    images = ProductImageSerializer(many=True, read_only=True)  # Only read image URLs
     variations = ProductVariationSerializer(many=True)
     specification = ProductSpecificationSerializer()
     pricing = PricingSerializer()
@@ -55,15 +55,15 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['vendor']
 
     def create(self, validated_data):
-        #images_data = validated_data.pop('images')
-        variations_data = validated_data.pop('variations')
-        specification_data = validated_data.pop('specification')
-        pricing_data = validated_data.pop('pricing')
+        # Handle non-image nested data
+        variations_data = validated_data.pop('variations', [])
+        specification_data = validated_data.pop('specification', None)
+        pricing_data = validated_data.pop('pricing', None)
+        
+        # Create the product
         product = Product.objects.create(**validated_data)
         
-        # for image_data in images_data:
-        #     ProductImage.objects.create(product=product, **image_data)
-        
+        # Create related objects
         for variation_data in variations_data:
             ProductVariation.objects.create(product=product, **variation_data)
         
