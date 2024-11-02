@@ -48,7 +48,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             image_instances = []
             
             for image_data in images_data:
-                # Validate image size and format if needed
+               #  Validate image size and format if needed
                 if self._validate_image(image_data):
                     image_instance = ProductImage.objects.create(
                         product=product,

@@ -532,6 +532,7 @@ class VendorViewSet(viewsets.ViewSet):
             user.save()
         else:
             # If user exists and already a vendor, return an error
+
             if hasattr(user, 'vendor'):
                 return Response(
                     {"error": "A vendor with this email already exists."},
@@ -552,5 +553,6 @@ class VendorViewSet(viewsets.ViewSet):
             },
             status=status.HTTP_201_CREATED
         )
+
 
 
