@@ -41,21 +41,18 @@ class ProductViewSet(viewsets.ModelViewSet):
             # Get the vendor for the authenticated user
             vendor = Vendor.objects.get(user=self.request.user)
             
-            # Save the product with vendor
+            # Save the product with the vendor
             product = serializer.save(vendor=vendor)
             
             # Handle multiple image uploads
             images_data = self.request.FILES.getlist('images', [])
-            image_instances = []
+            image_instances = [
+                ProductImage(product=product, image=image_data)
+                for image_data in images_data if self._validate_image(image_data)
+            ]
             
-            for image_data in images_data:
-               #  Validate image size and format if needed
-                if self._validate_image(image_data):
-                    image_instance = ProductImage.objects.create(
-                        product=product,
-                        image=image_data
-                    )
-                    image_instances.append(image_instance)
+            # Bulk create the images
+            ProductImage.objects.bulk_create(image_instances)
             
             # Prepare response data
             response_data = serializer.data
@@ -70,6 +67,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             if 'product' in locals():
                 product.delete()
             raise ValidationError({"error": f"Error creating product: {str(e)}"})
+
+
 
     def _validate_image(self, image):
         """
