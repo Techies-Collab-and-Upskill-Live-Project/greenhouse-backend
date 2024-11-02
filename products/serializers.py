@@ -12,7 +12,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'image_url']
+        fields = ['id', 'image_url']
 
     def get_image_url(self, product_image):
         # Check if product_image.image exists before accessing url

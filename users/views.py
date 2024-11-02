@@ -439,20 +439,12 @@ class VendorViewSet(viewsets.ViewSet):
         serializer = VendorEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-        
-        #Check if the user with this email exists
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            #If the user doesn’t exist, create one
-            user = User.objects.create(email=email)
-        #Generate OTP, store in cache, and send email
-        response_data, status_code = create_and_send_otp(user)
-        if status_code == status.HTTP_201_CREATED:
-            cache.set(f"otp_{email}", user.otp, timeout=300)
-            return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
-        else:
-            return Response(response_data, status=status_code)
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        cache.set(f"otp_{email}", otp, timeout=300)
+        create_and_send_otp(
+            
+        )
+        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
         
        
     @swagger_auto_schema(
@@ -508,46 +500,59 @@ class VendorViewSet(viewsets.ViewSet):
         """
         Step 5: Vendor completes shop registration.
         """
+        # Required session keys for vendor registration
         required_keys = ['country', 'email_verified', 'phone_number', 'password', 'user_type']
+
+        # Check if all required data exists in the session
         if not all(key in request.session for key in required_keys):
-            return Response({"error": "Please complete all previous registration steps"}, status=status.HTTP_400_BAD_REQUEST)
-         # Validate the shop data from the request
+            return Response(
+                {"error": "Please complete all previous registration steps"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate the shop data from the request
         serializer = FlexibleVendorShopSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-    # Extracting data from session
+        # Extracting data from session
         email = request.session['email_verified']
-        phone_number = request.session['phone_number']
-        password = request.session['password']
-        user_type = request.session['user_type']
-        country = request.session['country']
+        raw_password = request.session['password'] 
 
-    # Check if the User already exists
+        # Check if the User already exists
         user, created = User.objects.get_or_create(
-        email=email,
-        defaults={
-            'phone_number': phone_number,
-            'user_type': user_type,
-            'country': country,
-            'is_active': True
-            }
+            email=email, 
+            phone_number = request.session['phone_number'],
+            user_type = request.session['user_type'],
+            country = request.session['country']
         )
+
         if created:
-            user.set_password(password) 
+            # Hash and set the password if user is newly created
+            user.set_password(raw_password)
             user.save()
         else:
-            if hasattr(user, 'vendor'):
-                return Response({"error": "A vendor with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            # If user exists and already a vendor, return an error
 
-    # Create the Vendor instance linked to the existing or new User
+            if hasattr(user, 'vendor'):
+                return Response(
+                    {"error": "A vendor with this email already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Create the Vendor instance linked to the User
         vendor = Vendor.objects.create(user=user, **serializer.validated_data)
-    
-    # Clear the session data
+
+        # Clear the session data
         for key in required_keys:
-            del request.session[key]
-        
-        
-        return Response({
-            "message": "Vendor registered successfully.",
-            "vendor": FlexibleVendorShopSerializer(vendor).data,
-        }, status=status.HTTP_201_CREATED)
+            request.session.pop(key, None)
+
+        return Response(
+            {
+                "message": "Vendor registered successfully.",
+                "vendor": FlexibleVendorShopSerializer(vendor).data,
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+
