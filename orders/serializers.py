@@ -3,7 +3,7 @@ from .models import Cart, CartItem, Order, OrderItem
 from products.serializers import ProductSerializer
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only = True, )
+    product = ProductSerializer(read_only = True,)
     product_id = serializers.UUIDField(required=True)
     variation_id = serializers.UUIDField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1, default=1)

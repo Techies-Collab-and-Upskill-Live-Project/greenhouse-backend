@@ -106,7 +106,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             images_data = self.request.FILES.getlist('images', [])
             if images_data:
                 # Optionally clear existing images if needed
-                # instance.images.all().delete()
+                instance.images.all().delete()
                 
                 image_instances = []
                 for image_data in images_data:
