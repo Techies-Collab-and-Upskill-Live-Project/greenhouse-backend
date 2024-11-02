@@ -20,6 +20,7 @@ from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
 
 class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated, IsVendor]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -28,12 +29,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description']
     ordering_fields = ['created_on', 'price']
 
-    def get_queryset(self):
-        try:
-            vendor = Vendor.objects.get(user=self.request.user)
-            return Product.objects.filter(vendor=vendor)
-        except Vendor.DoesNotExist:
-            return Product.objects.none()
+    # def get_queryset(self):
+    #     try:
+    #         vendor = Vendor.objects.get(user=self.request.user)
+    #         return Product.objects.filter(vendor=vendor)
+    #     except Vendor.DoesNotExist:
+    #         return Product.objects.none()
 
     def perform_create(self, serializer):
         try:
