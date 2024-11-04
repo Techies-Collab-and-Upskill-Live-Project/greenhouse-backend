@@ -215,7 +215,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         
         
         #  Action to get all categories
-    @action(detail=False, methods=['get'], url_path='categories-list', serializer_class=ProductCategorySerializer)
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny], url_path='categories-list', serializer_class=ProductCategorySerializer)
     def list_categories(self, request, *args, **kwargs):
         # Query all categories
         categories = Category.objects.all()
