@@ -28,7 +28,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     'https://fysi-api.onrender.com',
     'https://greenhouse-front-end.vercel.app',
-    'https://greenhouse-frontend-mscopy-ywwa.vercel.app',
+    'https://greenhouse-frontend-mscopy.vercel.app',
     'https://greenhouse-frontend-mscopy-ehov-rdeamnfzb-mikelsmiths-projects.vercel.app',
     
 ]
