@@ -127,3 +127,8 @@ class FlexibleVendorShopSerializer(serializers.ModelSerializer):
             data.pop('cac_certificate', None)
         
         return data
+class NewsletterSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
+    class Meta:
+        model = Newsletters
+        fields = ['email']

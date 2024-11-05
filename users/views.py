@@ -26,29 +26,26 @@ def verify_otp(email, otp):
         else:
             return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
-#create and send otp to mail
-def create_and_send_otp(user):
-        # generate OTP
-        try:
-            user.generate_otp()
-            context = {
-            'otp': user.otp
-        }
-            #send the OTP
-            html_content = render_to_string('products/otp_email_template.html', context)
-            text_content = strip_tags(html_content)
+#send mail
+def send_email(email, template_name, context, subject):
+    try:
+        # Render the email content
+        html_content = render_to_string(template_name, context)
+        text_content = strip_tags(html_content)
+        html_content = render_to_string(template_name, context)
             
-            #Create the email
-            email = EmailMultiAlternatives(
-            subject='OTP Verification',
-            body=text_content,
-            from_email='youremail@example.com',
-            to=[user.email]
+        #Create the email
+        email = EmailMultiAlternatives(
+        subject=subject,   
+        body=text_content,
+        from_email='youremail@example.com',
+        to=[email]
         )
-            email.attach_alternative(html_content, "text/html")
-            email.send()
-            return {"message": "OTP sent to your email"}, status.HTTP_201_CREATED
-        except User.DoesNotExist:
+        email.attach_alternative(html_content, "text/html")
+        email.send()
+        return {
+            "message": "Email sent successfully"}, status.HTTP_201_CREATED
+    except User.DoesNotExist:
             return {"invalid email"}, status.HTTP_400_BAD_REQUEST
 
 
@@ -169,12 +166,23 @@ class UserViewSet(viewsets.ModelViewSet):
         queryset = User.objects.all()
         serializer = self.get_serializer(data = request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
+        context = serializer.validated_data['email']
+        serializer = VendorEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        template_name = 'products/otp_email_template.html'
+        context= {otp}
+        subject='OTP Verification'
+
+        cache.set(f"otp_{email}", otp, timeout=300)
+        send_email(newsletter,template_name, context, subject)
+        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
+
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             raise serializers.ValidationError
-        response_data, status_code = create_and_send_otp(user)
+        response_data, status_code = send_email(template_name, context, subject)
         return Response(response_data, status=status_code)
 
 
@@ -326,7 +334,7 @@ class VendorViewSet(viewsets.ViewSet):
             #If the user doesn’t exist, create one
             user = User.objects.create(email=email)
         #Generate OTP, store in cache, and send email
-        response_data, status_code = create_and_send_otp(user)
+        response_data, status_code = send_email(user)
         if status_code == status.HTTP_201_CREATED:
             cache.set(f"otp_{email}", user.otp, timeout=300)  # Cache OTP for verification
             return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
@@ -403,7 +411,6 @@ class VendorViewSet(viewsets.ViewSet):
             "vendor": FlexibleVendorShopSerializer(vendor).data,
         }, status=status.HTTP_201_CREATED)
 
-
  
 #extend profile based on user_type
 
@@ -438,12 +445,13 @@ class VendorViewSet(viewsets.ViewSet):
         """
         serializer = VendorEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
         otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        template_name = 'products/otp_email_template.html'
+        context= {"otp":otp}
+        subject='OTP Verification'
+        email = serializer.validated_data['email']
         cache.set(f"otp_{email}", otp, timeout=300)
-        create_and_send_otp(
-            
-        )
+        send_email(context,template_name, context, subject)
         return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
         
        
@@ -553,6 +561,26 @@ class VendorViewSet(viewsets.ViewSet):
             },
             status=status.HTTP_201_CREATED
         )
+    
+class NewsletterViewSet(viewsets.ModelViewSet):
+    queryset=Newsletters.objects.all()
+    serializer_class=NewsletterSerializer
+    
+    @swagger_auto_schema(
+        method='post',
+        request_body=NewsletterSerializer,
+        responses={200: "OK"}
+        )
+    @action(detail=False, methods=['post'], url_path='Newsletter')
+    def push_newsletter(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        newsletter = Newsletters(email=email)
+        newsletter.save()
 
-
-
+        template_name = 'products/newsletter_email_template.html'
+        subject='Welcome to FYSI NewsLetter'
+        context = {'email': email}
+        send_email(email,template_name, context, subject)
+        return Response({"message": "Thanks for Registering"}, status=status.HTTP_201_CREATED)
