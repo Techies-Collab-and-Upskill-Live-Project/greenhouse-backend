@@ -99,3 +99,4 @@ class Vendor(models.Model):
 class Newsletter(models.Model):
     id= models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email=models.EmailField(unique=True)
+    name = models.CharField(blank=True, null=True)
