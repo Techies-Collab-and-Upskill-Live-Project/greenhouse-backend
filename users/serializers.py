@@ -130,5 +130,5 @@ class FlexibleVendorShopSerializer(serializers.ModelSerializer):
 class NewsletterSerializer(serializers.ModelSerializer):
     email = serializers.EmailField()
     class Meta:
-        model = Newsletters
+        model = Newsletter
         fields = ['email']

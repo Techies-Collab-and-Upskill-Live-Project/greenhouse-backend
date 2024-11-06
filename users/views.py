@@ -573,7 +573,7 @@ class VendorViewSet(viewsets.ViewSet):
         )
     
 class NewsletterViewSet(viewsets.ModelViewSet):
-    queryset=Newsletters.objects.all()
+    queryset=Newsletter.objects.all()
     serializer_class=NewsletterSerializer
     
     @swagger_auto_schema(
@@ -586,7 +586,7 @@ class NewsletterViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-        newsletter, created = Newsletters.objects.get_or_create(email=email)
+        newsletter, created = Newsletter.objects.get_or_create(email=email)
         if not created:
             return Response({"message": "Email already exists"}, status=status.HTTP_409_CONFLICT)
 
