@@ -99,12 +99,21 @@ class UserViewSet(viewsets.ModelViewSet):
         if User.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
 
-        # Create a new user instance with inactive status and generate OTP
+        # Create a new user instance with inactive status and generate OTP    
+        
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        template_name = 'products/otp_email_template.html'
+        context= {"otp":otp}
+        subject='OTP Verification'
         user = User(email=email, is_active=False)
         user.save()
-        response_data, status_code = create_and_send_otp(user)
-
-        return Response(response_data, status=status_code)
+        response_data, status_code = send_email(context,template_name, context, subject)
+        if status_code == status.HTTP_201_CREATED:
+            cache.set(f"otp_{email}", otp, timeout=300)
+            return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
+        else:
+            return Response(response_data, status=status_code)
+        
 
     # 2. Verify OTP
     @action(detail=False, methods=['post'], url_path='verify-otp')
@@ -451,8 +460,9 @@ class VendorViewSet(viewsets.ViewSet):
         subject='OTP Verification'
         email = serializer.validated_data['email']
         cache.set(f"otp_{email}", otp, timeout=300)
-        send_email(context,template_name, context, subject)
+        send_email(context,template_name, subject)
         return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
+        
         
        
     @swagger_auto_schema(
@@ -576,8 +586,9 @@ class NewsletterViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-        newsletter = Newsletters(email=email)
-        newsletter.save()
+        newsletter, created = Newsletters.objects.get_or_create(email=email)
+        if not created:
+            return Response({"message": "Email already exists"}, status=status.HTTP_409_CONFLICT)
 
         template_name = 'products/newsletter_email_template.html'
         subject='Welcome to FYSI NewsLetter'
