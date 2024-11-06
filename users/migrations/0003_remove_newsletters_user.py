@@ -6,9 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0001_initial'),
+        ('users', '0002_remove_newsletters_user'),
     ]
 
     operations = [
-        
+        migrations.RemoveField(
+            model_name='Newsletter',
+            name='user',
+        ),
     ]
