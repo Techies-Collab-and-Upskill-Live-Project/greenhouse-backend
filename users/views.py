@@ -44,8 +44,9 @@ def send_email(email, template_name, context, subject):
         email_obj.send()
         return {
             "message": "Email sent successfully"}, status.HTTP_201_CREATED
-    except User.DoesNotExist:
-            return {"invalid email"}, status.HTTP_400_BAD_REQUEST
+    except Exception as e:
+            return {"error": "Failed to send email",
+            "details": str(e)}, status.HTTP_400_BAD_REQUEST
 
 
 #handle registration based on selected user_type
