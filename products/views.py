@@ -17,8 +17,6 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 
 
-
-
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -26,7 +24,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
     filterset_fields = ['category', 'brand', 'color', 'vendor', 'status']
-    search_fields = ['name', 'description']
+    search_fields = ['name',]
     ordering_fields = ['created_on', 'price']
 
     # def get_queryset(self):

@@ -586,7 +586,7 @@ class NewsletterViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-        newsletter, created = Newsletter.objects.get_or_create(email=email)
+        Newsletter, created = Newsletter.objects.get_or_create(email=email)
         if not created:
             return Response({"message": "Email already exists"}, status=status.HTTP_409_CONFLICT)
 
