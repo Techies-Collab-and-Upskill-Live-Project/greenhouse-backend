@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import User 
+from .models import * 
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from products.models import *
@@ -586,7 +586,7 @@ class NewsletterViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
-        Newsletter, created = Newsletter.objects.get_or_create(email=email)
+        newsletters, created = Newsletter.objects.get_or_create(email=email)
         if not created:
             return Response({"message": "Email already exists"}, status=status.HTTP_409_CONFLICT)
 
