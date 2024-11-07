@@ -180,11 +180,11 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
         template_name = 'products/otp_email_template.html'
-        context= {otp}
+        context= {'otp': otp}
         subject='OTP Verification'
 
         cache.set(f"otp_{email}", otp, timeout=300)
-        send_email(newsletter,template_name, context, subject)
+        send_email(email,template_name, context, subject)
         return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
 
         try:
@@ -262,16 +262,26 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='resetrequest')
     def resetrequest(self, request):
-        queryset = User.objects.all()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
         try:
             user = User.objects.get(email=email)
-            response_data, status_code = create_and_send_otp(user)
-            return Response(response_data, status=status_code)
         except User.DoesNotExist:
-            return Response({"user not registered"}, status = status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "if email exist, you should receive an OTP email"}, status=status.HTTP_200_OK)
+        
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        template_name = 'products/otp_email_template.html'
+        context= {"otp":otp}
+        subject="Request Password OTP"
+        
+        response_data, status_code = send_email(email,template_name, context, subject)
+        if status_code == status.HTTP_201_CREATED:
+            cache.set(f"otp_{email}", otp, timeout=300)
+            return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
+        else:
+            return Response(response_data, status=status_code)
+
 
     @action(detail=False, methods=['post'], url_path='resetpassword')
     def resetpassword(self, request):

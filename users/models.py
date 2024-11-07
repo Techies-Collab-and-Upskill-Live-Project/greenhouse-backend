@@ -96,7 +96,19 @@ class Vendor(models.Model):
 
     def __str__(self):
         return f'Vendor: {self.user.email}'
+    
+"""class Newleta(models.Model):
+    id= models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email=models.EmailField(unique=True)
+    name = models.CharField(blank=True, null=True, max_length=10,)
+    
+    def __str__(self):
+        return f'Vendor: {self.user.email}' """
+    
 class Newsletter(models.Model):
     id= models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email=models.EmailField(unique=True)
     name = models.CharField(blank=True, null=True, max_length=10,)
+    
+    def __str__(self):
+        return f'Vendor: {self.user.email}'

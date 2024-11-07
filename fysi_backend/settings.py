@@ -118,7 +118,7 @@ PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
  }"""
 
 
-DATABASES = {
+"""DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME'),  
@@ -127,8 +127,17 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST'),  
         'PORT': os.getenv('DB_PORT'), 
     }
+}"""
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'fysi_db_oyoy',
+        'USER': 'fysi_db_oyoy_user',
+        'PASSWORD': '8XNrTR0FDsii0cEiDDCYD0bOx2Ca4NR2',
+        'HOST': 'dpg-cs71u5l6l47c738vh1s0-a.oregon-postgres.render.com',
+        'PORT': '5432',
+    }
 }
-
 
 
 #EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
