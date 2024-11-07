@@ -32,17 +32,16 @@ def send_email(email, template_name, context, subject):
         # Render the email content
         html_content = render_to_string(template_name, context)
         text_content = strip_tags(html_content)
-        html_content = render_to_string(template_name, context)
             
         #Create the email
-        email = EmailMultiAlternatives(
+        email_obj= EmailMultiAlternatives(
         subject=subject,   
         body=text_content,
         from_email='youremail@example.com',
         to=[email]
         )
-        email.attach_alternative(html_content, "text/html")
-        email.send()
+        email_obj.attach_alternative(html_content, "text/html")
+        email_obj.send()
         return {
             "message": "Email sent successfully"}, status.HTTP_201_CREATED
     except User.DoesNotExist:
@@ -107,7 +106,7 @@ class UserViewSet(viewsets.ModelViewSet):
         subject='OTP Verification'
         user = User(email=email, is_active=False)
         user.save()
-        response_data, status_code = send_email(context,template_name, context, subject)
+        response_data, status_code = send_email(email,template_name, context, subject)
         if status_code == status.HTTP_201_CREATED:
             cache.set(f"otp_{email}", otp, timeout=300)
             return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
