@@ -8,7 +8,7 @@ from drf_yasg import openapi
 from rest_framework.routers import DefaultRouter
 from orders.views import paystack_webhook
 from products.views import ProductListViewSet
-from users.views import UserViewSet , NewsletterViewSet
+from users.views import UserViewSet, NewsletterViewSet
 
 schema_view = get_schema_view(
    openapi.Info(

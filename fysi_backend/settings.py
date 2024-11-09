@@ -128,6 +128,7 @@ PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
         'PORT': os.getenv('DB_PORT'), 
     }
 }"""
+#new database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

@@ -4,10 +4,6 @@ from .models import *
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
-# Serializer for OTP verification
-class ActivateSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    otp = serializers.CharField(max_length=4)
 
 # Serializer for setting the password
 class SetPasswordSerializer(serializers.Serializer):
@@ -51,7 +47,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 #Other actions
 class ActivationSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    activation_pin = serializers.CharField(max_length=6)
+    otp = serializers.CharField(max_length=4)
 
 class ResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -82,6 +78,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+
     
     
 # Vendor Registration Serializer
@@ -92,9 +89,6 @@ class VendorCountrySerializer(serializers.Serializer):
 class VendorEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
-class ActivationSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    activation_pin = serializers.CharField(max_length=4)
 
 class VendorRegistrationSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=15)

@@ -20,11 +20,15 @@ from drf_yasg.utils import swagger_auto_schema
 def verify_otp(email, otp):
 
         stored_otp = cache.get(f"otp_{email}")
-        if stored_otp and stored_otp == otp:
-            cache.delete(f"otp_{email}")
-            return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
+        if stored_otp:
+            if stored_otp["otp"] == otp and stored_otp["email"] == email:
+                cache.delete(f"otp_{email}")
+                return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
+            elif stored_otp["email"] != email:
+                return Response({"message": "invalid email"}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid OTP or OTP expired"}, status=status.HTTP_400_BAD_REQUEST)
+        
 
 #send mail
 def send_email(email, template_name, context, subject):
@@ -56,18 +60,18 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'register':
             return RegisterSerializer
-        elif self.action == 'send_otp':
+        elif self.action in ['send_otp', 'resend_otp']:
             return RegisterSerializer
         elif self.action == 'login':
             return LoginSerializer
-        elif self.action in ['resetrequest', 'reactivate']:
+        elif self.action == 'resetrequest':
             return ResetRequestSerializer
         elif self.action == 'resetpassword':
             return ResetPasswordSerializer
         elif self.action == 'change_password':
             return ChangePasswordSerializer
         elif self.action == 'verify_otp':
-            return ActivateSerializer
+            return ActivationSerializer
         elif self.action == 'complete_profile':
             return CompleteProfileSerializer
         elif self.action == 'set_password':
@@ -97,7 +101,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Check if the email already exists
         if User.objects.filter(email=email).exists():
-            return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
+            return Response({'error': 'User with this email already exists, Kindly log in instead'}, status=status.HTTP_409_CONFLICT)
 
         # Create a new user instance with inactive status and generate OTP    
         
@@ -105,11 +109,10 @@ class UserViewSet(viewsets.ModelViewSet):
         template_name = 'products/otp_email_template.html'
         context= {"otp":otp}
         subject='OTP Verification'
-        user = User(email=email, is_active=False)
-        user.save()
+        
         response_data, status_code = send_email(email,template_name, context, subject)
         if status_code == status.HTTP_201_CREATED:
-            cache.set(f"otp_{email}", otp, timeout=300)
+            cache.set(f"otp_{email}", {"otp" : otp, "email" : email}, timeout=300)
             return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
         else:
             return Response(response_data, status=status_code)
@@ -124,14 +127,10 @@ class UserViewSet(viewsets.ModelViewSet):
         otp = serializer.validated_data['otp']
 
         # Verify OTP
-        if not User.objects.filter(email=email).exists():
-            return Response({'error': 'Invalid email'}, status=status.HTTP_400_BAD_REQUEST)
-
         response = verify_otp(email, otp)
-        user = User.objects.get(email=email)
-        if otp == user.otp:
+        if response.status_code == status.HTTP_200_OK:
+            user = User.objects.create(email=email)
             user.is_active = True
-            user.otp = ''
             user.save()
             return Response({'message': 'OTP verified. Proceed to password setup.'}, status=status.HTTP_200_OK)
         return response
@@ -170,29 +169,20 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({"message": "Profile completed successfully{id}"}, status=status.HTTP_200_OK)
 
     
-    @action(detail=False, methods=['post'], url_path='reactivate')
-    def reactivate(self, request):
-        queryset = User.objects.all()
+    @action(detail=False, methods=['post'], url_path='resend_otp')
+    def resend_otp(self, request):
         serializer = self.get_serializer(data = request.data)
         serializer.is_valid(raise_exception=True)
-        context = serializer.validated_data['email']
-        serializer = VendorEmailSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
+        email = serializer.validated_data['email']
+        stored_otp = cache.get(f"otp_{email}")
+        if not stored_otp:
+            return Response({"error": "OTP not found or expired, please request a new OTP."}, status=status.HTTP_400_BAD_REQUEST)
         template_name = 'products/otp_email_template.html'
-        context= {'otp': otp}
-        subject='OTP Verification'
-
-        cache.set(f"otp_{email}", otp, timeout=300)
+        context= {'otp': stored_otp["otp"]}
+        subject='Resent OTP'
         send_email(email,template_name, context, subject)
-        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
+        return Response({"message": "OTP resent successfully"}, status=status.HTTP_200_OK)
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise serializers.ValidationError
-        response_data, status_code = send_email(template_name, context, subject)
-        return Response(response_data, status=status_code)
 
 
 #
@@ -464,14 +454,26 @@ class VendorViewSet(viewsets.ViewSet):
         """
         serializer = VendorEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        user, created= User.objects.get_or_create(email=email, defaults={'is_active': False})
+        if not created:
+            return Response({'error': 'User with this email already exists'}, status=status.HTTP_409_CONFLICT)
+
         otp = ''.join([str(random.randint(0, 9)) for _ in range(4)])
         template_name = 'products/otp_email_template.html'
         context= {"otp":otp}
         subject='OTP Verification'
         email = serializer.validated_data['email']
-        cache.set(f"otp_{email}", otp, timeout=300)
+        cache.set(f"otp_{email}", {"otp":otp, "email":email}, timeout=300)
         send_email(context,template_name, subject)
-        return Response({"message": "OTP sent successfully, It expires in 5 minutes"}, status=status.HTTP_200_OK)
+        response_data, status_code = send_email(email,template_name, context, subject)
+
+        if status_code == status.HTTP_201_CREATED:
+            cache.set(f"otp_{email}", otp, timeout=300)
+            return Response({"message": "OTP sent successfully. It expires in 5 minutes"}, status=status_code)
+        else:
+            user.delete()
+            return Response(response_data, status=status_code)
+        
         
         
        
