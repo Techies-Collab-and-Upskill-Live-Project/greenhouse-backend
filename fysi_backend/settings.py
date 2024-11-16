@@ -132,11 +132,11 @@ PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'fysi_db_oyoy',
-        'USER': 'fysi_db_oyoy_user',
-        'PASSWORD': '8XNrTR0FDsii0cEiDDCYD0bOx2Ca4NR2',
-        'HOST': 'dpg-cs71u5l6l47c738vh1s0-a.oregon-postgres.render.com',
-        'PORT': '5432',
+        'NAME': 'postgres',
+        'USER': 'postgres.xeismjauqysmqynblnxf',
+        'PASSWORD': 'Thegreenhouse001.',
+        'HOST': 'aws-0-us-east-1.pooler.supabase.com',
+        'PORT': '6543',
     }
 }
 
