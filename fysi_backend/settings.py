@@ -22,7 +22,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "http://localhost:3000", "https://greenhouse-frontend-mscopy.vercel.app", "greenhouse-frontend-mscopy.vercel.app", 'https://greenhouse-front-end.vercel.app', 'greenhouse-front-end.vercel.app', 'localhost:3000', "https://fysi-api.onrender.com", "fysi-api.onrender.com", ]
+ALLOWED_HOSTS = ["127.0.0.1", "http://localhost:3000", 'extra-meredith-htcode-a4fa6c61.koyeb.app/', "https://greenhouse-frontend-mscopy.vercel.app", "greenhouse-frontend-mscopy.vercel.app", 'https://greenhouse-front-end.vercel.app', 'greenhouse-front-end.vercel.app', 'localhost:3000', "https://fysi-api.onrender.com", "fysi-api.onrender.com", ]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -30,7 +30,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://greenhouse-front-end.vercel.app',
     'https://greenhouse-frontend-mscopy.vercel.app',
     'https://greenhouse-frontend-mscopy-ehov-rdeamnfzb-mikelsmiths-projects.vercel.app',
-    
+    'extra-meredith-htcode-a4fa6c61.koyeb.app/',
 ]
 
 # Application definition
@@ -118,7 +118,7 @@ PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
  }"""
 
 
-"""DATABASES = {
+DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME'),  
@@ -127,18 +127,8 @@ PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
         'HOST': os.getenv('DB_HOST'),  
         'PORT': os.getenv('DB_PORT'), 
     }
-}"""
-#new database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres.xeismjauqysmqynblnxf',
-        'PASSWORD': 'Thegreenhouse001.',
-        'HOST': 'aws-0-us-east-1.pooler.supabase.com',
-        'PORT': '6543',
-    }
 }
+
 
 
 #EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
